@@ -1,0 +1,35 @@
+--
+options:
+  - long: input-file
+    short: i
+    type: file_in
+    human_readable: 'Input file'
+    help: "Input file for process, required, no default"
+  - long: output-file
+    short: o
+    type: file_out
+    default: "out.txt"
+    human_readable: 'Output file, has a default'
+  - long: dimensions-list
+    short: d
+    type: list
+    separator: ";"
+    dest_type: int
+    human_readable: 'Dimensions for pca'
+    help: "Comma separated list of dimensions for PCA"
+    default: "1,2"
+  - long: norm-algorithm
+    short: a
+    human_readable: 'Algorithm for normalisation'
+    type: string
+    default: vst
+    options:
+      - human_readable: VST
+        value: vst
+      - human_readable: XFV
+        value: xfv
+    help: "Normalisation algorithm, either "
+  - long: do-plot
+    type: boolean
+    default: true
+

@@ -1,0 +1,56 @@
+commands:
+  - call: 'read_seurat3_object'
+    options_aliases:
+      - option: input-format
+        call: format
+    options:
+      - long: input-path
+        short: i
+        type: file_in
+        human_readable: 'Input file'
+        help: "Input file with Seurat object in either RDS-Seurat, Loom or SCE"
+      - long: input-format
+        type: string
+        human_readable: 'Input format'
+        default: 'seurat'
+        help: 'Either loom, seurat, anndata or singlecellexperiment for the input format to read.'
+    output:
+      - var_name: seurat_object
+  - call: 'PercentageFeatureSet'
+    options:
+      - long: object
+        type: internal
+        var_name: seurat_object
+      - long: pattern
+        help: 'A regex pattern to match features against.'
+        type: string
+      - long: features
+        help: 'A defined feature set. If features provided, will ignore the pattern matching'
+        type: file_in
+      - long: col-name
+        help: 'Name in meta.data column to assign. If this is not null, returns a Seurat object with the proportion of the feature set stored in metadata.'
+        type: string
+      - long: assay
+        help: 'Assay to use'
+        default: None
+        type: string
+    output:
+      - var_name: seurat_object_with_perc_feature_set
+  - call: 'write_seurat3_object'
+    parsing_opts:
+      - r_sep: "_"
+    options_aliases:
+      - option: output-format
+        call: format
+    options:
+      - long: seurat_object
+        type: internal
+        var_name: seurat_object_with_perc_feature_set
+      - long: output-path
+        type: file_out
+      - long: output-format
+        type: string
+        default: seurat
+
+
+
