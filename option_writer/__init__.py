@@ -61,6 +61,9 @@ class Option:
     def _default(self):
         return self.elements['default']
 
+    def is_optional(self):
+        return 'optional' in self.elements and self.elements['optional']
+
 
 class BooleanOption(Option):
     """
@@ -314,17 +317,65 @@ class GalaxyOption(Option):
     """
     Base Galaxy option class
     """
+    def long_value(self):
+        return self.elements['long'].replace("-", "_")
+
+    def option_caller(self):
+        caller_t = Template("""
+            {% if optional -%}
+            #if ${{ long_value }}
+            {% endif -%}
+                --{{ long }} '${{ long_value }}'
+            {% if optional -%}
+            #end if
+            {% endif -%}
+        """)
+
+        return dedent(caller_t.render(long=self._long(), long_value=self.long_value(), optional=self.is_optional()))
+
+    def _help(self):
+        """
+        Takes help, but replacing " for ' to avoid issues in the Galaxy help field.
+        :return:
+        """
+        return self.elements['help'].replace("\"", "'")
+
+    @staticmethod
+    def create_option(option_dict, aliases_dict=None):
+        super(GalaxyOption, GalaxyOption).create_option(option_dict=option_dict)
+
+        if option_dict['type'] in ['string', 'integer', 'float']:
+            return GalaxyInputOption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'boolean':
+            return BooleanGalaxyOption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'file_in':
+            return FileInputGalaxyOption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'file_out':
+            return GalaxyOutputOption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'internal':
+            return None
+        # if option_dict['type'] == 'list':
+        #     return StringListOption(dict_with_slots=option_dict)
+        # if option_dict['type'] == 'internal':
+        #     return InternalVarROption(dict_with_slots=option_dict)
+
+
+class GalaxyInputOption(GalaxyOption):
+    """
+    Base Galaxy input option class
+    """
     def option_maker(self):
         """
         Produces a text for creating the option in Galaxy
             <param label="Features" optional="true" name="features" argument="--features" type="text" help="Comma-separated list of genes to use for building SNN."/>
         :return: text as specified
         """
-        maker_t = Template("""<param label="{{ label }}" {{ optional_default }} name="{{ name }}" """ +
+        maker_t = Template("""<{{ tag }} label="{{ label }}" {{ optional_default }} name="{{ name }}" """ +
                            """argument="--{{ argument }}" type="{{ type }}" {{ format }} """ +
                            """{{ boolean }} help="{{ help }}"/>""")
 
         output = maker_t.render(
+                                tag=self._tag(),
                                 label=self._human_readable(),
                                 optional_default=self._galaxy_default_declaration(),
                                 name=self.long_value(),
@@ -336,39 +387,11 @@ class GalaxyOption(Option):
                                 )
         return dedent(output)
 
+    def _tag(self):
+        return "param"
+
     def _boolean_declare(self):
         return ""
-
-    def long_value(self):
-        return self.elements['long'].replace("-", "_")
-
-    def option_caller(self):
-        caller_t = Template("""
-        #if ${{ long_value }}
-            --{{ long }} '${{ long_value }}'
-        #end if
-        """)
-
-        return dedent(caller_t.render(has_default=self.has_default,
-                                      long_value=self.long_value(),
-                                      long=self._long()))
-
-    @staticmethod
-    def create_option(option_dict, aliases_dict=None):
-        super(GalaxyOption, GalaxyOption).create_option(option_dict=option_dict)
-
-        if option_dict['type'] == 'string':
-            return GalaxyOption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'boolean':
-            return BooleanGalaxyOption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'file_in':
-            return FileInputGalaxyOption(dict_with_slots=option_dict)
-        # if option_dict['type'] == 'file_out':
-        #     return FileROption(dict_with_slots=option_dict)
-        # if option_dict['type'] == 'list':
-        #     return StringListOption(dict_with_slots=option_dict)
-        # if option_dict['type'] == 'internal':
-        #     return InternalVarROption(dict_with_slots=option_dict)
 
     def _type(self):
         if super()._type() == 'string':
@@ -377,7 +400,10 @@ class GalaxyOption(Option):
 
     def _galaxy_default_declaration(self):
         if self.has_default:
-            return "optional='true' value='{}'".format(self._default().replace("'", ""))
+            return "optional='true' value='{}'".format(str(self._default()).replace("'", ""))
+        elif self.is_optional():
+            return "optional='true'"
+        return ""
 
     def _galaxy_format_declaration(self):
         return ""
@@ -390,12 +416,12 @@ class GalaxyOption(Option):
         return "'{}'".format(self.elements['default'])
 
 
-class BooleanGalaxyOption(BooleanOption, GalaxyOption):
+class BooleanGalaxyOption(BooleanOption, GalaxyInputOption):
     """
     Galaxy boolean option writer, handles
     """
     def option_caller(self):
-        return "${{{}}}".format(self.long_value())
+        return "'${}'".format(self.long_value())
 
     def _boolean_declare(self):
         """
@@ -425,7 +451,38 @@ class BooleanGalaxyOption(BooleanOption, GalaxyOption):
         else:
             return "false"
 
-#class FileInputGalaxyOption(GalaxyOption):
 
-#    def _galaxy_format_declaration(self):
+class FileInputGalaxyOption(GalaxyInputOption):
 
+    def _type(self):
+        return "data"
+
+    def _galaxy_format_declaration(self):
+        return "format='{}'".format(self.elements['format'] if 'format' in self.elements else "?")
+
+
+class GalaxyOutputOption(GalaxyOption):
+
+    def option_maker(self):
+        """
+        Produces a text for creating the output in Galaxy
+            <data format="pdf" name="output_1" label="\$\{tool.name\} on \$\{on_string\}: out" argument="--features" type="text" help="Comma-separated list of genes to use for building SNN."/>
+        :return: text as specified
+        """
+        maker_t = Template("""<{{ tag }} label="${tool.name} on ${on_string}: {{ label }}" """ +
+                           """name="{{ name }}" """ +
+                           """{{ format }} />""")
+
+        output = maker_t.render(
+            tag=self._tag(),
+            label=self._human_readable(),
+            name=self.long_value(),
+            format=self._galaxy_format_declaration(),
+        )
+        return dedent(output)
+
+    def _galaxy_format_declaration(self):
+        return "format='{}'".format(self.elements['format'] if 'format' in self.elements else "?")
+
+    def _tag(self):
+        return "data"

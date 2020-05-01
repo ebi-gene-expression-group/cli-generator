@@ -1,0 +1,103 @@
+commands:
+  - call: 'monocle_read_obj'
+    dependencies:
+      - monocle3
+    options:
+      - long: input-object
+        short: i
+        type: file_in
+        human_readable: 'Input Object'
+        help: "Input file with monocle3 object in either RDS-Monocle"
+      - long: input-object-format
+        type: string
+        human_readable: 'Input format'
+        default: 'cds3'
+        call_alias: format
+        help: 'Currently only cds3 supported.'
+    output:
+      - var_name: monocle_object
+  - call: 'topMarkers'
+    dependencies:
+      - Monocle3
+    options:
+      - long: object
+        type: internal
+        var_name: monocle_object
+      - long: reference-cells
+        short: r
+        type: file_in
+        human_readable: 'Reference cells'
+        help: 'Set of cells to be considered as reference for marker significance test. Accelerates the marker significance test at some cost in sensitivity.'
+        optional: true
+      - long: filter-fraction-expression
+        type: float
+        human_readable: 'Filter fraction for expression'
+        default: 0.10
+        help: 'Filters the markers test result by this fraction of expression'
+        optional: true
+      - long: top-n-markers
+        short: t
+        type: integer
+        default: 5
+        help: 'The number of top marker genes to report in plots and in top markers list'
+        optional: true
+      - long: plot-top-markers
+        short: p
+        human_readable: 'Plot top markers'
+        type: file_out
+        help: 'Save top marker by cell group plot to a file specified by this option.'
+        optional: true
+      - long: save-full-markers
+        short: f
+        human_readable: 'Full markers'
+        type: file_out
+        help: 'Save full marker table to a file specified by this option.'
+        optional: true
+      - long: cores
+        type: num_of_processors
+        default: 1
+        human_readable: 'Number of cores'
+        help: 'The number of cores to be used for marker testing.'
+        optional: true
+      - long: marker-sig-test
+        short: m
+        type: boolean
+        default: false
+        help: 'whether to assess the discriminative power of each marker through logistic regression. Can be slow, consider disabling to speed up top_markers().'
+        human_readable: 'Use logistic regression to asses discriminatory power'
+        optional: true
+      - long: genes-to-test-per-group
+        short: g
+        type: integer
+        human_readable: 'Number of genes to test per group'
+        help: 'how many genes of the top ranked specific genes by Jenson-Shannon, to do the more expensive regression test on'
+        default: 25
+        optional: true
+      - long: group-cells-by
+        type: string
+        default: cluster
+        help: 'Cell groups, choose from "cluster", "partition", or any categorical variable in `colData(cds)'
+        human_readable: 'Group cell by'
+        optional: true
+    output:
+      - var_name: marker_test_res
+  - call: 'monocle_write_table'
+    parsing_opts:
+      - r_sep: "_"
+    options:
+      - long: object
+        type: internal
+      - long: seurat_object
+        type: internal
+        var_name: seurat_object_with_perc_feature_set
+      - long: output-path
+        type: file_out
+        help: "Output file for Seurat 3"
+      - long: output-format
+        call_alias: format
+        type: string
+        help: "Format for Seurat 3"
+        default: seurat
+
+
+

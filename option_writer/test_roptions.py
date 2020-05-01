@@ -171,7 +171,7 @@ response_galaxy_option_simple_string_make="""<param label="My string var" option
 
 
 def test_galaxy_option():
-    opt = GalaxyOption.create_option(sample_option_simple_string)
+    opt = GalaxyInputOption.create_option(sample_option_simple_string)
     assert opt.option_maker() == response_galaxy_option_simple_string_make
     assert opt.option_caller() == response_galaxy_option_simple_string_call
 
@@ -180,6 +180,6 @@ response_galaxy_option_boolean_true_call="${my_logical_var}"
 
 
 def test_boolean_galaxy_option():
-    opt = GalaxyOption.create_option(sample_option_boolean_true)
+    opt = GalaxyInputOption.create_option(sample_option_boolean_true)
     assert opt.option_maker() == response_galaxy_option_boolean_true_make
     assert opt.option_caller() == response_galaxy_option_boolean_true_call

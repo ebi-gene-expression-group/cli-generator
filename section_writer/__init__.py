@@ -137,3 +137,55 @@ class RSingleResultCommandWriter(RCommandWriter):
                                        param_calls=param_calls,
                                        output=self.output
                                        ))
+
+
+class GalaxySectionWriter:
+    def __init__(self, options_dict_list):
+        self.options = [GalaxyOption.create_option(option) for option in options_dict_list
+                        if GalaxyOption.create_option(option) is not None]
+
+
+class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
+
+    def write_declarations(self):
+
+        inputs_t = Template("""
+                <inputs>
+                {%- for option in i_options %}
+                    {{ option.option_maker() }}
+                {%- endfor %} 
+                </inputs>
+        """)
+
+        outputs_t = Template("""
+                <outputs>
+                {%- for option in o_options %}
+                    {{ option.option_maker() }}
+                {%- endfor %}
+                </outputs>
+        """)
+
+        result = dedent(inputs_t.render(
+            i_options=[option for option in self.options if isinstance(option, GalaxyInputOption)]))
+
+        result += dedent(outputs_t.render(
+            o_options=[option for option in self.options if isinstance(option, GalaxyOutputOption)]))
+
+        return result
+
+
+class GalaxyCommandWriter(GalaxySectionWriter):
+
+    def write_command(self):
+
+        command_t = Template(
+            """
+            <command detect_errors="exit_code"><![CDATA[
+                {%- for option in options -%}
+                    {{ option.option_caller() }}
+                {%- endfor %}    
+            ]]</command>
+            """)
+
+        command = dedent(command_t.render(options=self.options))
+        return command
