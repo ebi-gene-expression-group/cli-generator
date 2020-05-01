@@ -1,6 +1,7 @@
 import os
 import yaml
 from section_writer import *
+from RWrapperOrganiser import *
 
 TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), 'PercentageFeatureSet.yaml')
 
@@ -25,3 +26,5 @@ def test_script_writing():
     for command in script_data['commands']:
         cmd_w = RCommandWriter.create_writer(command)
         print(cmd_w.write_command_call())
+        create_R_file(cmd_w,opt_w)
+        print("end")

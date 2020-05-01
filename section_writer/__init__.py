@@ -13,9 +13,13 @@ class RDependencies:
     Writes the dependency section for R
     """
     def __init__(self, list_of_commands):
+        print("init RDependencies")
         self.dependencies = set()
         for command in list_of_commands:
+            print("loooop dependencies   = c" + str(command))
             if 'dependencies' in command:
+                
+                print("check one dependency")
                 self.dependencies.update(command['dependencies'])
 
     def write(self):
@@ -33,11 +37,13 @@ class ROptionsDeclarationWriter(RSectionWriter):
         make_calls = list()
         mandatory = list()
         for option in self.options:
-            if option.is_declarable:
-                make_calls.append(option.option_maker())
-                if not option.has_default:
-                    mandatory.append(option.long_value())
-
+            try:  
+                if option.is_declarable:
+                    make_calls.append(option.option_maker())
+                    if not option.has_default:
+                        mandatory.append(option.long_value())
+            except:
+                pass
         make_calls_t = Template("""
                 option_list <- list(
                 {%- for call in calls -%}
@@ -58,13 +64,19 @@ class ROptionsDeclarationWriter(RSectionWriter):
 class RPreprocessWriter(RSectionWriter):
 
     def write_preprocess(self):
-        pre_process_calls = [option.pre_process() for option in self.options if option.has_preprocess]
-
-        pre_process_calls_t = Template("""
-        {%- for call in calls %}
-        {{ call }}
-        {% endfor -%}
-        """)
+        #pre_process_calls = [option.pre_process() for option in self.options if option.has_preprocess]
+        pre_process_calls = []
+        for option in self.options:
+            try:
+                if option.has_preprocess:
+                    pre_process_calls.append(option.pre_process())
+                    pre_process_calls_t = Template("""
+                    {%- for call in calls %}
+                    {{ call }}
+                    {% endfor -%}
+                    """)
+            except:
+                pass
 
         return dedent(pre_process_calls_t.render(calls=pre_process_calls))
 
@@ -80,11 +92,12 @@ class RCommandWriter(RSectionWriter):
     @staticmethod
     def create_writer(command):
         if 'output' in command:
+            print("YOOOOOOO")
             return RSingleResultCommandWriter(command=command['call'],
-                                              options_dict_list=command['options'],
-                                              output=command['output'][0]['var_name'])
-        return RCommandWriter(command=command['call'],
-                              options_dict_list=command['options'])
+                                                  options_dict_list=command['options'],
+                                                  output=command['output'][0]['var_name'])
+            return RCommandWriter(command=command['call'],
+                                  options_dict_list=command['options'])
 
     # def _create_options_list(self, options_dict_list):
     #    for option in options_dict_list:
@@ -104,7 +117,10 @@ class RCommandWriter(RSectionWriter):
 
         param_calls = list()
         for option in self.options:
-            param_calls.append(option.option_caller())
+            try:    
+                param_calls.append(option.option_caller())
+            except:
+                continue
 
         return dedent(command_t.render(command=self.command,
                                        param_calls=param_calls,
@@ -131,8 +147,10 @@ class RSingleResultCommandWriter(RCommandWriter):
 
         param_calls = list()
         for option in self.options:
-            param_calls.append(option.option_caller())
-
+            try:
+                param_calls.append(option.option_caller())
+            except: 
+                continue
         return dedent(command_t.render(command=self.command,
                                        param_calls=param_calls,
                                        output=self.output
