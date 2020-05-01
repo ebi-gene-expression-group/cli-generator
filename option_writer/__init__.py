@@ -21,6 +21,7 @@ class Option:
         """
         for field in ['long', 'type']:
             if field not in option_dict:
+                print(option_dict)
                 raise Exception("Option is invalid, {} field is required.".format(field))
 
     def option_caller(self):
@@ -56,8 +57,10 @@ class Option:
         return self.elements['type']
 
     def _help(self):
-        return self.elements['help']
-
+        try:
+            return self.elements['help']
+        except:
+            return 'FILE IN'
     def _default(self):
         return self.elements['default']
 
