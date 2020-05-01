@@ -1,0 +1,317 @@
+commands:
+- call: FindIntegrationAnchors
+  dependencies: &id001
+  - utils
+  - RANN
+  - future
+  - pbapply
+  - methods
+  - future
+  - future
+  options:
+  - default: 'NULL'
+    help: object.list A list of objects between which to find anchors for
+    long: object.list
+    type: string
+  - default: 'NULL'
+    help: assay Name or vector of assay names (one for each object) that correspond
+    long: assay
+    type: string
+  - default: 'NULL'
+    help: reference Seurat object to use as the reference
+    long: reference
+    type: string
+  - default: '2000'
+    help: 'anchor.features Can be either:'
+    long: anchor.features
+    type: numeric
+  - default: 'TRUE'
+    help: scale Whether or not to scale the features provided. Only set to FALSE
+    long: scale
+    type: logical
+  - default: c("LogNormalize","SCT")
+    help: 'normalization.method Name of normalization method used: LogNormalize'
+    long: normalization.method
+    type: string
+  - default: 'NULL'
+    help: sct.clip.range Numeric of length two specifying the min and max values
+    long: sct.clip.range
+    type: string
+  - default: c("cca","rpca")
+    help: reduction Which dimensionally reduced space to use
+    long: reduction
+    type: string
+  - default: 'TRUE'
+    help: l2.norm Perform L2 normalization on the cell embeddings after dimensional
+      reduction
+    long: l2.norm
+    type: logical
+  - default: '1:30'
+    help: dims Dimensions to use
+    long: dims
+    type: string
+  - default: '5'
+    help: k.anchor How many neighbors (k) to use when picking anchors
+    long: k.anchor
+    type: numeric
+  - default: '200'
+    help: k.filter How many neighbors (k) to use when filtering anchors
+    long: k.filter
+    type: numeric
+  - default: '30'
+    help: k.score How many neighbors (k) to use when scoring anchors
+    long: k.score
+    type: numeric
+  - default: '200'
+    help: max.features The maximum number of features to use when specifying the neighborhood
+      search
+    long: max.features
+    type: numeric
+  - default: '"rann"'
+    help: 'nn.method Method for nearest neighbor finding. Options include: rann,'
+    long: nn.method
+    type: string
+  - default: '0'
+    help: eps Error bound on the neighbor finding algorithm (from RANN)
+    long: eps
+    type: numeric
+  - default: 'TRUE'
+    help: verbose Display output/messages
+    long: verbose
+    type: logical
+  output:
+  - var_name: FindIntegrationAnchors
+- call: FindTransferAnchors
+  dependencies: *id001
+  options:
+  - help: reference Seurat object to use as the reference
+    long: reference
+    type: file_in
+  - help: query Seurat object to use as the query
+    long: query
+    type: file_in
+  - default: c("LogNormalize","SCT")
+    help: 'normalization.method Name of normalization method used: LogNormalize'
+    long: normalization.method
+    type: string
+  - default: 'NULL'
+    help: reference.assay Assay to use from reference
+    long: reference.assay
+    type: string
+  - default: 'NULL'
+    help: query.assay Assay to use from query
+    long: query.assay
+    type: string
+  - default: '"pcaproject"'
+    help: reduction Dimensional reduction to perform when finding anchors. Can
+    long: reduction
+    type: string
+  - default: 'FALSE'
+    help: project.query Project the PCA from the query dataset onto the reference.
+      Use only in rare
+    long: project.query
+    type: logical
+  - default: 'NULL'
+    help: features Vector of features to use when computing the PCA to determine the
+      weights. Only set
+    long: features
+    type: string
+  - default: '30'
+    help: npcs Number of PCs to compute on reference. If null, then use an existing
+      PCA structure in
+    long: npcs
+    type: numeric
+  - default: 'TRUE'
+    help: l2.norm Perform L2 normalization on the CCA cell embeddings after
+    long: l2.norm
+    type: logical
+  - default: '1:30'
+    help: dims Which dimensions to use from the CCA to specify the neighbor
+    long: dims
+    type: string
+  - default: '5'
+    help: k.anchor How many neighbors (k) to use when picking anchors
+    long: k.anchor
+    type: numeric
+  - default: '200'
+    help: k.filter How many neighbors (k) to use when filtering anchors
+    long: k.filter
+    type: numeric
+  - default: '30'
+    help: k.score How many neighbors (k) to use when scoring anchors
+    long: k.score
+    type: numeric
+  - default: '200'
+    help: max.features The maximum number of features to use when specifying the
+    long: max.features
+    type: numeric
+  - default: '"rann"'
+    help: 'nn.method Method for nearest neighbor finding. Options include: rann,'
+    long: nn.method
+    type: string
+  - default: '0'
+    help: eps Error bound on the neighbor finding algorithm (from RANN)
+    long: eps
+    type: numeric
+  - default: 'TRUE'
+    help: approx.pca Use truncated singular value decomposition to approximate PCA
+    long: approx.pca
+    type: logical
+  - default: 'TRUE'
+    help: verbose Print progress bars and output
+    long: verbose
+    type: logical
+  output:
+  - var_name: FindTransferAnchors
+- call: IntegrateData
+  dependencies: *id001
+  options:
+  - help: anchorset Results from FindIntegrationAnchors
+    long: anchorset
+    type: file_in
+  - default: '"integrated"'
+    help: new.assay.name Name for the new assay containing the integrated data
+    long: new.assay.name
+    type: string
+  - default: c("LogNormalize","SCT")
+    help: 'normalization.method Name of normalization method used: LogNormalize or
+      SCT'
+    long: normalization.method
+    type: string
+  - default: 'NULL'
+    long: features
+    type: string
+  - default: 'NULL'
+    help: features.to.integrate Vector of features to integrate. By default, will
+      use the features
+    long: features.to.integrate
+    type: string
+  - default: '1:30'
+    help: dims Which dimensions to use from the reduction to specify the neighbor
+      search space
+    long: dims
+    type: string
+  - default: '100'
+    help: k.weight Number of neighbors to consider when weighting
+    long: k.weight
+    type: numeric
+  - default: 'NULL'
+    help: weight.reduction Dimension reduction to use when calculating anchor weights.
+    long: weight.reduction
+    type: string
+  - default: '1'
+    help: sd.weight Controls the bandwidth of the Gaussian kernel for weighting
+    long: sd.weight
+    type: numeric
+  - default: 'NULL'
+    help: sample.tree Specify the order of integration. If NULL, will compute automatically.
+    long: sample.tree
+    type: string
+  - default: 'FALSE'
+    help: preserve.order Do not reorder objects based on size for each pairwise integration.
+    long: preserve.order
+    type: logical
+  - default: 'TRUE'
+    help: do.cpp Run cpp code where applicable
+    long: do.cpp
+    type: logical
+  - default: '0'
+    help: eps Error bound on the neighbor finding algorithm (from RANN)
+    long: eps
+    type: numeric
+  - default: 'TRUE'
+    help: verbose Print progress bars and output
+    long: verbose
+    type: logical
+  output:
+  - var_name: IntegrateData
+- call: LocalStruct
+  dependencies: *id001
+  options:
+  - help: object Seurat object
+    long: object
+    type: file_in
+  - help: grouping.var Grouping variable for dataset
+    long: grouping.var
+    type: file_in
+  - default: 'NULL'
+    help: idents Optionally specify a set of idents to compute metric for
+    long: idents
+    type: string
+  - default: '100'
+    help: neighbors Number of neighbors to compute in pca/corrected pca space
+    long: neighbors
+    type: numeric
+  - default: '"pca"'
+    help: reduction Dimensional reduction to use for corrected space
+    long: reduction
+    type: string
+  - default: '1:10'
+    help: reduced.dims Number of reduced dimensions to use
+    long: reduced.dims
+    type: string
+  - default: '1:10'
+    help: orig.dims Number of PCs to use in original space
+    long: orig.dims
+    type: string
+  - default: 'TRUE'
+    help: verbose Print progress bars and output
+    long: verbose
+    type: logical
+  output:
+  - var_name: LocalStruct
+- call: MixingMetric
+  dependencies: *id001
+  options:
+  - long: object
+    type: file_in
+  - help: grouping.var Grouping variable
+    long: grouping.var
+    type: file_in
+  - default: '"pca"'
+    help: reduction Which dimensionally reduced space to use
+    long: reduction
+    type: string
+  - default: '1:2'
+    long: dims
+    type: string
+  - default: '5'
+    long: k
+    type: numeric
+  - default: '300'
+    help: max.k Maximum size of local neighborhood to compute
+    long: max.k
+    type: numeric
+  - default: '0'
+    help: eps Error bound on the neighbor finding algorithm (from \code{\link{RANN}})
+    long: eps
+    type: numeric
+  - default: 'TRUE'
+    help: verbose Display progress bar
+    long: verbose
+    type: logical
+  output:
+  - var_name: MixingMetric
+- call: PrepSCTIntegration
+  dependencies: *id001
+  options:
+  - help: object.list A list of objects to prep for integration
+    long: object.list
+    type: file_in
+  - default: 'NULL'
+    long: assay
+    type: string
+  - default: '2000'
+    help: 'anchor.features Can be either:'
+    long: anchor.features
+    type: numeric
+  - default: 'NULL'
+    help: sct.clip.range Numeric of length two specifying the min and max values
+    long: sct.clip.range
+    type: string
+  - default: 'TRUE'
+    help: verbose Displays progress bar
+    long: verbose
+    type: logical
+  output:
+  - var_name: PrepSCTIntegration

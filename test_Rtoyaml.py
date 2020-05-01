@@ -2,10 +2,9 @@ import re
 import subprocess
 import yaml as yam
 import os
-import Rtoyaml
-
-#adresse  = "test.R"
-adresse  = "monocle_format.R"
+from Rtoyaml import *
+adresse  = "test.R"
+#adresse  = "monocle_format.R"
 #############templates################################
 shebang_R = re.compile("[.]Rscript")
 shebang_R1 = re.compile("R")
