@@ -1,431 +1,218 @@
 from textwrap import dedent
 from jinja2 import Template
+from option_writer import *
 
 
-class Option:
+class RSectionWriter:
 
-    def __init__(self, dict_with_slots):
-        self.elements = dict_with_slots
-        self.has_preprocess = False
-        self.is_declarable = True
-        self.has_default = 'default' in self.elements
-
-    @staticmethod
-    def create_option(option_dict):
-        """
-        Factory method to intialise options based on the contents of the
-        option dictionary provided.
-
-        :param option_dict:
-        :return:
-        """
-        for field in ['long', 'type']:
-            if field not in option_dict:
-                raise Exception("Option is invalid, {} field is required.".format(field))
-
-    def option_caller(self):
-        """
-        Defines how the option is used within the library usage (script).
-        :return:
-        """
-        pass
-
-    def option_maker(self):
-        """
-        Defines how the option is created inside the scripts that call the library
-        methods.
-        :return:
-        """
-        pass
-
-    def pre_process(self):
-        pass
-
-    def _human_readable(self):
-        if 'human_readable' not in self.elements:
-            return self.elements['long'].capitalize()
-        return self.elements['human_readable']
-
-    def _long(self):
-        return self.elements['long']
-
-    def long_value(self):
-        return self.elements['long']
-
-    def _type(self):
-        return self.elements['type']
-
-    def _help(self):
-        return self.elements['help']
-
-    def _default(self):
-        return self.elements['default']
+    def __init__(self, options_dict_list):
+        self.options = [ROption.create_option(option) for option in options_dict_list]
 
 
-class BooleanOption(Option):
+class shebang_writer:
+    def __init__(self, list_of_commands):
+        self.shebang = list_of_commands['shebang']
+    def write(self):
+        return str(self.shebang)
+
+class RsaveRDS:
     """
-    Base class for Boolean Options accross frameworks
+    Writes the saveRDS section
     """
-    def _long(self):
-        if self.elements['default']:
-            return "do-not-{}".format(self.elements['long'])
+    def __init__(self, list_of_commands):
+        self.needsave = []
+        command = list_of_commands[-1]
+        if 'output' in command:
+            for option in command['options']:
+                if option['long'] == 'output_file':
+                    self.needsave.append([command['output'][0]['var_name'], True])
+                    break
+                else:
+                    self.needsave.append(command['output'][0]['var_name'])
+                    break
+    def return_type(self,var):
+        if type(var) == list:
+            return ''
         else:
-            return self.elements['long']
+            return 'no'
 
-
-class ROption(Option):
-    """
-    Base class for R OptParse options
-    """
-    def __init__(self, r_separator=".", **kwargs):
-        super().__init__(**kwargs)
-        self.r_sep = r_separator
-
-    @staticmethod
-    def create_option(option_dict, aliases_dict=None):
-        super(ROption, ROption).create_option(option_dict=option_dict)
-
-        if option_dict['type'] == 'string':
-            return CharacterROption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'boolean':
-            return BooleanROption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'file_in':
-            return FileInputROption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'file_out':
-            return FileROption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'list':
-            return StringListOption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'internal':
-            return InternalVarROption(dict_with_slots=option_dict)
-
-    def option_maker(self):
-        """
-        Produces a text for creating the option in optparse
-            make_option(
-                c('-i', '--input-file'),
-                action='store',
-                default=NULL,
-                metavar='Input file',
-                type='character',
-                help='The input file for...'
-            )
-        :return: text as specified
-        """
-        maker_t = Template("""make_option(
-                    c('{{ flags }}'),
-                    action='{{ action }}',
-                    {% if 'default' in elements -%}
-                    default={{ default }},
-                    {% endif -%}
-                    {% if 'human_readable' in elements -%}
-                    metavar='{{ human_readable }}',
-                    {% endif -%}
-                    type='{{ type }}',
-                    help='{{ help }}')
-                    """)
-
-        output = maker_t.render(flags=self._short_and_long(),
-                                action=self._action(),
-                                default=self._default(),
-                                human_readable=self._human_readable(),
-                                type=self._type(),
-                                help=self._help(),
-                                elements=self.elements,
-                                )
-        return dedent(output)
-
-    def option_caller(self):
-        """
-        Produces the text for invoking the option within the library function call.
-        :return: text of the form 'my.option = opt$my_option'
-        """
-        return "{} = {}".format(self.library_arg(), self._option_variable())
-
-    def _option_variable(self):
-        return "opt${}".format(self.long_value())
-
-    def _short_and_long(self):
-        if 'short' in self.elements and 'long' in self.elements:
-            return "-{}','--{}".format(self.elements['short'], self._long())
-        elif 'short' in self.elements:
-            return "-{}".format(self.elements['short'])
-        elif 'long' in self.elements:
-            return "--{}".format(self._long())
-        else:
-            raise Exception("Option needs to have at least short or long defined")
-
-    def library_arg(self):
-        """
-        The library argument should be the exact name that the library expects
-        for the argument. If for some reason the cli option cannot match the
-        library option/argument, then you can use an alias:
-
-        - long: input-format
-          call_alias: format
-
-        in this case the cli will receive an `--input-format` argument which will
-        be mapped to `format` for the library call.
-
-        In the case of R a cli argument `--pca-dimensions` will be accepted by some
-        R libraries as `pca.dimensions`, so this method allow for those changes (and
-        aliasing).
-        :return: The argument name as expected by the library, for command calling prep.
-        """
-        if 'call_alias' in self.elements:
-            return self.elements['call_alias'].replace("-", self.r_sep)
-        return self.elements['long'].replace("-", self.r_sep)
-
-    def long_value(self):
-        return self.elements['long'].replace("-", "_")
-
-    def _action(self):
-        return 'store'
-
-    def _default(self):
-        if 'default' not in self.elements:
-            return None
-        if self.elements['default'] is None:
-            return "NULL"
-        return "'{}'".format(self.elements['default'])
-
-
-class InternalVarROption(ROption):
-    """
-    Represents and internal R variable available to the library call that doesn't
-    need to be consumed from the cli options, but that is generated by some other
-    process/command in the script. As such, it needs not making, default nor help,
-    but only calling.
-    """
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.is_declarable = False
-
-    def option_maker(self):
-        return None
-
-    def _option_variable(self):
-        return self.elements['var_name']
-
-
-class CharacterROption(ROption):
-    """
-    Base class for anything that it is a character option in R.
-    """
-    def _type(self):
-        return 'character'
-
-
-class DoubleROption(ROption):
-    def _type(self):
-        return 'double'
-
-
-class FileROption(CharacterROption):
-    pass
-
-
-class FileInputROption(FileROption):
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.has_preprocess = True
-
-    def pre_process(self):
-        """
-        Produce code that checks whether the file exists or not.
-        :return:
-        """
-
-        file_exists_t = Template("""
-        if ( ! file.exists({{ path }}) ) {
-            stop((paste('File', {{ path }}, 'does not exist')))
-        }
+    def write(self):
+        save_temp = Template("""
+{% for output in needsave %}
+    {% if typos(var=output) == '' %}
+    saveRDS({{ output }}, file = opt$output_file)
+    {% else %}
+    saveRDS({{ output }})
+    {% endif %}
+{% endfor -%}
         """)
-        output = file_exists_t.render(path=self._option_variable())
-
-        return dedent(output)
+        return dedent(save_temp.render(needsave=self.needsave, typos = self.return_type))
 
 
-class BooleanROption(BooleanOption, ROption):
+class Ropeninglibrary:
     """
-    A boolean option for OptParse in R
-
-    If the default is true, then the flag should indicate a false state
+    Write the import section for loomR, scater
     """
-    def option_caller(self):
-        if self.elements['default']:
-            return "{} = !opt${}".format(self.library_arg(), self._long().replace("-", "_"))
-        else:
-            return super(BooleanROption, self).option_caller()
+    def __init__ (self, list_of_options):
+        self.needformat = False
+        for option in list_of_options:
+            if option['long'] == 'input_format':
+                self.needformat = True
 
-    def _action(self):
-        if self.elements['default']:
-            return "store_false"
-        else:
-            return "store_true"
-
-    def _type(self):
-        return "logical"
-
-    def _default(self):
-        if self.elements['default']:
-            return "TRUE"
-        else:
-            return "FALSE"
+    def write(self):
+        format_temp = Template("""
+{%if needformat %}
+    suppressPackageStartupMessages(require(Seurat))
+    if(opt$input_format == "loom" | opt$output_format == "loom") {
+      suppressPackageStartupMessages(require(loomR))
+    } else if(opt$input_format == "singlecellexperiment" | opt$output_format == "singlecellexperiment") {
+      suppressPackageStartupMessages(require(scater))
+    }    
+{% endif %}
+        """)
+        return dedent(format_temp.render(needformat=self.needformat))
 
 
-class StringListOption(CharacterROption):
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.has_preprocess = True
 
-    def option_caller(self):
-        """
-        On string list, input is processed and left in variable of same name as
-        self._long_arg()
-        :return: text of the form 'my.option = opt$my_option'
-        """
-        return "{} = {}".format(self.library_arg(), self.long_value())
-
-    def pre_process(self, tok_fun_name="unlist(strsplit({}, sep=','))"):
-        """
-        Produce code to tokenize list into parts
-        :param tok_fun_name: the call to be used to untokenize.
-        :return:
-        """
-
-        tokenise_t = Template("""
-        {{ long_value }} <- {{ option_var }}
-        if (! is.null({{ long_value }}) ) {
-            {{ long_value }} <- {{ tok_fun }}
-        }
+class RDependencies:
+    """
+    Writes the dependency section for R
+    """
+    def __init__(self, list_of_commands):
+        self.dependencies = set()
+        for command in list_of_commands:
+            if 'dependencies' in command:
+                self.dependencies.update(command['dependencies'])
+    def write(self):
+        deps_t = Template("""
+{% for dep in dependencies -%}
+suppressPackageStartupMessages(require({{ dep }}))
+{% endfor -%}
         """)
 
-        output = tokenise_t.render(long_value=self.long_value(),
-                                   option_var=self._option_variable(),
-                                   tok_fun=tok_fun_name.format(self._option_variable())
-                                   )
+        return dedent(deps_t.render(dependencies=self.dependencies))
 
-        return dedent(output)
+class ROptionsDeclarationWriter(RSectionWriter):
+
+    def write_declarations(self):
+        make_calls = list()
+        mandatory = list()
+        for option in self.options:
+            dont_write = 0
+            for other_option in self.options:
+                if str(option._long()) == str(other_option._long()):
+                    dont_write += 1
+            if dont_write > 1:
+                print("WARNING SAME -LONG USED MULTIPLE TIME TCHECK THE .yaml : " + str(option._long()))
+                self.options.pop(self.options.index(option))
+                continue
+            if option.is_declarable:
+                make_calls.append(option.option_maker())
+                if not option.has_default:
+                    mandatory.append(option.long_value())
+        make_calls_t = Template("""
+option_list <- list(
+{%- for call in calls -%}
+    {%- if not loop.last %}
+    {{ call }},
+    {%- else %}
+    {{ call }}
+    {%- endif -%}
+{%- endfor %})
+
+opt <- wsc_parse_args(option_list, 
+                      mandatory = c({%- for m in mandatory -%}{%- if not loop.last -%}'{{ m }}',{%- else -%}'{{ m }}'{%- endif -%}{%- endfor -%} ))
+                """)
+        return dedent(make_calls_t.render(calls=[call for call in make_calls if call],
+                                          mandatory=mandatory))
 
 
-class GalaxyOption(Option):
-    """
-    Base Galaxy option class
-    """
-    def option_maker(self):
-        """
-        Produces a text for creating the option in Galaxy
-            <param label="Features" optional="true" name="features" argument="--features" type="text" help="Comma-separated list of genes to use for building SNN."/>
-        :return: text as specified
-        """
-        maker_t = Template("""<param label="{{ label }}" {{ optional_default }} name="{{ name }}" """ +
-                           """argument="--{{ argument }}" type="{{ type }}" {{ format }} """ +
-                           """{{ boolean }} help="{{ help }}"/>""")
+class RPreprocessWriter(RSectionWriter):
 
-        output = maker_t.render(
-                                label=self._human_readable(),
-                                optional_default=self._galaxy_default_declaration(),
-                                name=self.long_value(),
-                                argument=self._long(),
-                                type=self._type(),
-                                format=self._galaxy_format_declaration(),
-                                help=self._help(),
-                                boolean=self._boolean_declare()
-                                )
-        return dedent(output)
+    def write_preprocess(self):
+        #pre_process_calls = [option.pre_process() for option in self.options if option.has_preprocess]
+        pre_process_calls = []
+        for option in self.options:
+            if option.has_preprocess:
+                pre_process_calls.append(option.pre_process())
+                pre_process_calls_t = Template("""
+{%- for call in calls %}
+{{ call }}
+{% endfor -%}
+                """)
+        return dedent(pre_process_calls_t.render(calls=pre_process_calls))
 
-    def _boolean_declare(self):
-        return ""
 
-    def long_value(self):
-        return self.elements['long'].replace("-", "_")
+class RCommandWriter(RSectionWriter):
 
-    def option_caller(self):
-        caller_t = Template("""
-        #if ${{ long_value }}
-            --{{ long }} '${{ long_value }}'
-        #end if
-        """)
-
-        return dedent(caller_t.render(has_default=self.has_default,
-                                      long_value=self.long_value(),
-                                      long=self._long()))
+    def __init__(self, command, **kwargs):
+        super().__init__(**kwargs)
+        self.command = command
+        # self.options = list()
+        # self._create_options_list(options_dict_list)
 
     @staticmethod
-    def create_option(option_dict, aliases_dict=None):
-        super(GalaxyOption, GalaxyOption).create_option(option_dict=option_dict)
+    def create_writer(command):
+        if 'output' in command:
+            return RSingleResultCommandWriter(command=command['call'],
+                                                  options_dict_list=command['options'],
+                                                  output=command['output'][0]['var_name'])
+            return RCommandWriter(command=command['call'],
+                                  options_dict_list=command['options'])
 
-        if option_dict['type'] == 'string':
-            return GalaxyOption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'boolean':
-            return BooleanGalaxyOption(dict_with_slots=option_dict)
-        if option_dict['type'] == 'file_in':
-            return FileInputGalaxyOption(dict_with_slots=option_dict)
-        # if option_dict['type'] == 'file_out':
-        #     return FileROption(dict_with_slots=option_dict)
-        # if option_dict['type'] == 'list':
-        #     return StringListOption(dict_with_slots=option_dict)
-        # if option_dict['type'] == 'internal':
-        #     return InternalVarROption(dict_with_slots=option_dict)
+    # def _create_options_list(self, options_dict_list):
+    #    for option in options_dict_list:
+    #        self.options.append(ROption.create_option(option_dict=option))
 
-    def _type(self):
-        if super()._type() == 'string':
-            return 'text'
-        return super()._type()
+    def write_command_call(self):
+        command_t = Template("""
+{{ command }}(
+    {%- for param_call in param_calls -%}
+                    {% if not loop.last -%}
+                    {{ param_call }},
+                    {% else -%}                            
+                    {{ param_call }}
+                    {%- endif %}
+    {%- endfor %})
+        """)
 
-    def _galaxy_default_declaration(self):
-        if self.has_default:
-            return "optional='true' value='{}'".format(self._default().replace("'", ""))
+        param_calls = list()
+        for option in self.options:
 
-    def _galaxy_format_declaration(self):
-        return ""
+            param_calls.append(option.option_caller())
+        print("ITS PARAM CALLS0 " + str(param_calls))
 
-    def _default(self):
-        if 'default' not in self.elements:
-            return None
-        if self.elements['default'] is None:
-            return ""
-        return "'{}'".format(self.elements['default'])
+        return dedent(command_t.render(command=self.command,
+                                       param_calls=param_calls,
+                                       ))
+
+class RSingleResultCommandWriter(RCommandWriter):
+
+    def __init__(self, output, **kwargs):
+        super().__init__(**kwargs)
+        self.output = output
+
+    def write_command_call(self):
+        command_t = Template("""
+{{ output }} <- {{ command }}(
+    {%- for param_call in param_calls -%}
+                    {% if not loop.last -%}
+                    {{ param_call }},
+                    {% else -%}
+                    {{ param_call }}
+                    {%- endif %}
+    {%- endfor %})
+        """)
+
+        param_calls = list()
+        for option in self.options:
+            param_calls.append(option.option_caller())
+        print("ITS PARAM CALLS0 " + str(param_calls))
+        return dedent(command_t.render(command=self.command,
+                                       param_calls=param_calls,
+                                       output=self.output
+                                       ))
 
 
-class BooleanGalaxyOption(BooleanOption, GalaxyOption):
-    """
-    Galaxy boolean option writer, handles
-    """
-    def option_caller(self):
-        return "${{{}}}".format(self.long_value())
-
-    def _boolean_declare(self):
-        """
-        Used to define the truevalue, falsevalue and checked status
-        in the option declaration.
-        :return:
-        """
-        if self.elements['default']:
-            truevalue = ""
-            checked = "true"
-            falsevalue = "--{}".format(self._long())
-        else:
-            truevalue = "--{}".format(self._long())
-            checked = "false"
-            falsevalue = ""
-
-        declare_t = Template("truevalue='{{ truevalue }}' falsevalue='{{ falsevalue }}' checked='{{ checked }}'")
-
-        return declare_t.render(truevalue=truevalue, checked=checked, falsevalue=falsevalue)
-
-    def _type(self):
-        return "boolean"
-
-    def _default(self):
-        if self.elements['default']:
-            return "true"
-        else:
-            return "false"
-
-#class FileInputGalaxyOption(GalaxyOption):
-
-#    def _galaxy_format_declaration(self):
 
