@@ -5,7 +5,7 @@ from section_writer import *
 from RWrapperOrganiser import *
 from textwrap import dedent
 
-TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), 'yo.yaml')
+TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), 'findtransferanchors.yaml')
 
 
 def test_script_writing():
