@@ -1,0 +1,128 @@
+shebang: '#!/usr/bin/env Rscript'
+commands:
+- call: 'read_seurat3_object'
+  options:
+  - long: input_path
+    short: i
+    type: file_in
+    human_readable: 'Input file'
+    help: "Input file with Seurat object in either RDS-Seurat, Loom or SCE"
+  - long: format
+    type: string
+    human_readable: 'Input format'
+    default: 'seurat'
+    help: 'Either loom, seurat, anndata or singlecellexperiment for the input format to read.'
+  output:
+      - var_name: reference
+- call: 'read_seurat3_object'
+  options:
+  - long: input_path
+    short: i
+    type: file_in
+    human_readable: 'Input file'
+    help: "Input file with Seurat object in either RDS-Seurat, Loom or SCE"
+  - long: format
+    type: string
+    human_readable: 'Input format'
+    default: 'seurat'
+    help: 'Either loom, seurat, anndata or singlecellexperiment for the input format to read.'
+  output:
+      - var_name: query
+- call: FindTransferAnchors
+  dependencies:
+  - utils
+  - RANN
+  - pbapply
+  - future
+  - optparse
+  - workflowscriptscommon
+  - Seurat
+  parsing_opts:
+    - r_sep: "_"
+  options:
+  - default:
+    var_name: reference
+    long: reference
+    type: internal
+  - default:
+    var_name: query
+    long: query
+    type: internal
+  - default: NULL
+    help: reference.assay Assay to use from reference
+    long: reference.assay
+    type: string
+  - default: NULL
+    help: query.assay Assay to use from query
+    long: query.assay
+    type: string
+  - default: pcaproject
+    help: 'reduction Dimensional reduction to perform when finding anchors. Options
+      are: itemize    itempcaproject: Project the PCA from the reference onto the
+      query. We recommend using PCA    when reference and query datasets are from
+      scRNA-seq    itemcca: Run a CCA on the reference and query  '
+    long: reduction
+    type: string
+  - default: 'SCT'
+    help: 'blablabla'
+    long: normalization-method
+    type: string
+  - default: false
+    help: project.query Project the PCA from the query dataset onto the reference.
+      Use only in rare cases where the query dataset has a much larger cell number,
+      but the reference dataset has a unique assay for transfer.
+    long: project.query
+    type: boolean
+  - default: NULL
+    help: features Features to use for dimensional reduction
+    long: features
+    type: string
+  - default: 30
+    help: npcs Number of PCs to compute on reference. If null, then use an existing
+      PCA structure in the reference object
+    long: npcs
+    type: string
+  - default: true
+    help: l2.norm Perform L2 normalization on the cell embeddings after dimensional
+      reduction
+    long: l2.norm
+    type: boolean
+  - default: 5
+    help: k.anchor How many neighbors (k) to use when picking anchors
+    long: k.anchor
+    type: string
+  - default: 200
+    help: k.filter How many neighbors (k) to use when filtering anchors
+    long: k.filter
+    type: string
+  - default: '1:30'
+    help: balbalba
+    long: dims
+    type: string
+  - default: 30
+    help: k.score How many neighbors (k) to use when scoring anchors
+    long: k.score
+    type: string
+  - default: 200
+    help: max.features The maximum number of features to use when specifying the neighborhood
+      search space in the anchor filtering
+    long: max.features
+    type: string
+  - default: rann
+    help: 'nn.method Method for nearest neighbor finding. Options include: rann, annoy'
+    long: nn.method
+    type: string
+  - default: 0
+    help: eps Error bound on the neighbor finding algorithm (from RANN)
+    long: eps
+    type: string
+  - default: true
+    help: approx.pca Use truncated singular value decomposition to approximate PCA
+    long: approx.pca
+    type: boolean
+  - default: true
+    help: verbose Print progress bars and output
+    long: verbose
+    type: boolean
+  output:
+  - var_name: 'anchor_object'
