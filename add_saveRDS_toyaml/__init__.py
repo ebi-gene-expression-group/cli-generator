@@ -11,6 +11,8 @@ def curate_string(string):
 
 
 def modify_all_simple_dict_values(data):
+    """recursive function to go through a dictionnary, stops when find a 'var_name' key, and save the var_name in global
+    """
     if isinstance(data, dict):
         for k, v in data.items():       
             if 'var_name' in k:
@@ -29,11 +31,12 @@ def modify_all_simple_dict_values(data):
 
 with open(path) as file:
     docs = yaml.load(file,Loader=yaml.FullLoader)
-    print(docs)
     modify_all_simple_dict_values(docs)
+    #recursivly look for 'var_name' in the dictionnary
     if var_to_save == None:
         print("NO OUTPUT VAR_NAME IN THE YAML")
-    else: 
+    else:
+        #if var_name key exist, add a new saveRDS call to the dictionnary and then dump it in the original yaml
         to_add = {}
         to_add["call"] = "saveRDS"
         to_add["options"] = [{'long' : 'object', 'type' : 'internal', 'var_name' : curate_string(var_to_save)}, {'long' : 'file', 'type'  : 'file_out'}]

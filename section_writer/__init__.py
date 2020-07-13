@@ -10,10 +10,15 @@ class RSectionWriter:
 
 
 class shebang_writer:
+    """
+    Simply look for the 'shebang' key in the dictionnary and get it
+    write() return the shebang string
+    """
     def __init__(self, list_of_commands):
         self.shebang = list_of_commands['shebang']
     def write(self):
         return str(self.shebang)
+
 
 class need_wsc:
     """if default contain a list or a vector, create a call with wsc to treat it
@@ -30,30 +35,35 @@ class need_wsc:
         self.corrected_options = list_of_options
         numeric_temp  = re.compile("[1-9]+:[1-9]+")
         for option in self.corrected_options:
-            print("ITS OPTION" + str(option))
             if 'default' in option and  option['default'] != None:
                 str_default = str(option['default'])
                 if ',' in str(str_default):
+                    #if ',' in option['default'] it trigger a call for wsc_split_string
                     self.needsplit.append(option['long'])
                     option['var_name'] = option['long']
                     option['type'] = 'internal'
                 elif numeric_temp.search(str_default) != None:
+                    #if a:b template in option['default'] it trigger a call for wsc_parse_numeric
                     self.neednumeric.append(option['long'])
                     option['var_name'] = option['long']
                     option['type'] = 'internal'
-
     def write(self):
+        """
+        return a string with wsc_parse_numeric template
+        """
         numeric_temp = Template("""
 {% for element in neednumeric %}
-    element <- wsc_parse_numeric(opt, element)
+    {{ element }} <- wsc_parse_numeric(opt, {{ element }})
 {% endfor %}
         """)
         split_temp = Template("""
 {% for element in neednumeric %}
-    element <- wsc_split_string(element, sep=',')
+   {{ element }} <- wsc_split_string({{ element }}, sep=',')
 {% endfor %}
                 """)
         return dedent(numeric_temp.render(neednumeric=self.neednumeric) + split_temp.render(needsplit=self.needsplit))
+
+
 
 class RsaveRDS:
     """
@@ -71,12 +81,16 @@ class RsaveRDS:
                     self.needsave.append(command['output'][0]['var_name'])
                     break
     def return_type(self,var):
+        #just check is variable is a list
         if type(var) == list:
             return ''
         else:
             return 'no'
 
     def write(self):
+        """
+        return a string with the saveRDS template
+        """
         save_temp = Template("""
 {% for output in needsave %}
     {% if typos(var=output) == '' %}
@@ -97,9 +111,11 @@ class Ropeninglibrary:
         self.needformat = False
         for option in list_of_options:
             if option['long'] == 'input_format':
+                #if 'input_format' in one of the option['long'] it trigger the creation of the following section
                 self.needformat = True
 
     def write(self):
+        """ write the opening section with loomR or scater library"""
         format_temp = Template("""
 {%if needformat %}
     suppressPackageStartupMessages(require(Seurat))
@@ -111,7 +127,6 @@ class Ropeninglibrary:
 {% endif %}
         """)
         return dedent(format_temp.render(needformat=self.needformat))
-
 
 
 
@@ -132,6 +147,7 @@ suppressPackageStartupMessages(require({{ dep }}))
         """)
 
         return dedent(deps_t.render(dependencies=self.dependencies))
+
 
 class ROptionsDeclarationWriter(RSectionWriter):
 
@@ -184,6 +200,7 @@ class RPreprocessWriter(RSectionWriter):
         return dedent(pre_process_calls_t.render(calls=pre_process_calls))
 
 
+
 class RCommandWriter(RSectionWriter):
 
     def __init__(self, command, **kwargs):
@@ -219,13 +236,11 @@ class RCommandWriter(RSectionWriter):
 
         param_calls = list()
         for option in self.options:
-
             param_calls.append(option.option_caller())
-        print("ITS PARAM CALLS0 " + str(param_calls))
-
         return dedent(command_t.render(command=self.command,
                                        param_calls=param_calls,
                                        ))
+
 
 class RSingleResultCommandWriter(RCommandWriter):
 
@@ -248,7 +263,6 @@ class RSingleResultCommandWriter(RCommandWriter):
         param_calls = list()
         for option in self.options:
             param_calls.append(option.option_caller())
-        print("ITS PARAM CALLS0 " + str(param_calls))
         return dedent(command_t.render(command=self.command,
                                        param_calls=param_calls,
                                        output=self.output

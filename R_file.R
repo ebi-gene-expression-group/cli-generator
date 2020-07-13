@@ -1,11 +1,11 @@
 #!/usr/bin/env Rscript
-suppressPackageStartupMessages(require(Seurat))
 suppressPackageStartupMessages(require(workflowscriptscommon))
-suppressPackageStartupMessages(require(pbapply))
-suppressPackageStartupMessages(require(RANN))
-suppressPackageStartupMessages(require(optparse))
-suppressPackageStartupMessages(require(future))
 suppressPackageStartupMessages(require(utils))
+suppressPackageStartupMessages(require(Seurat))
+suppressPackageStartupMessages(require(future))
+suppressPackageStartupMessages(require(pbapply))
+suppressPackageStartupMessages(require(optparse))
+suppressPackageStartupMessages(require(RANN))
 
 option_list <- list(
     make_option(
@@ -140,7 +140,7 @@ opt <- wsc_parse_args(option_list,
                       mandatory = c('input_path'))
 
 
-element <- wsc_parse_numeric(opt, element)
+dims <- wsc_parse_numeric(opt, dims)
 
 
 
