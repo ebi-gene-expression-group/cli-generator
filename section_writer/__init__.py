@@ -135,9 +135,13 @@ class RDependencies:
     Writes the dependency section for R
     """
     def __init__(self, list_of_commands):
+        print("init RDependencies")
         self.dependencies = set()
         for command in list_of_commands:
+            print("loooop dependencies   = c" + str(command))
             if 'dependencies' in command:
+                
+                print("check one dependency")
                 self.dependencies.update(command['dependencies'])
     def write(self):
         deps_t = Template("""
@@ -167,6 +171,7 @@ class ROptionsDeclarationWriter(RSectionWriter):
                 make_calls.append(option.option_maker())
                 if not option.has_default:
                     mandatory.append(option.long_value())
+
         make_calls_t = Template("""
 option_list <- list(
 {%- for call in calls -%}
@@ -212,6 +217,7 @@ class RCommandWriter(RSectionWriter):
     @staticmethod
     def create_writer(command):
         if 'output' in command:
+            print("YOOOOOOO")
             return RSingleResultCommandWriter(command=command['call'],
                                                   options_dict_list=command['options'],
                                                   output=command['output'][0]['var_name'])
