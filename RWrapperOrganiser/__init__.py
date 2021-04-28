@@ -12,7 +12,12 @@ def create_R_file(*args,**kwargs):
             to_write += element
         r_file.write(to_write)
             
-            
+
+def write_R_file(path, *sections):
+    with open(path, "w+") as r_file:
+        for section in sections:
+            r_file.write(str(section))
+
         
     
     

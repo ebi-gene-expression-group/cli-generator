@@ -3,7 +3,7 @@ import yaml
 from section_writer import *
 from RWrapperOrganiser import *
 
-TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), 'PercentageFeatureSet.yaml')
+TESTDATA_FILENAME = os.path.join(os.path.dirname(__file__), '..', 'PercentageFeatureSet.yaml')
 
 
 def test_script_writing():
@@ -23,7 +23,9 @@ def test_script_writing():
     preproc_w = RPreprocessWriter(all_opts)
     print(preproc_w.write_preprocess())
 
+    commands = ""
     for command in script_data['commands']:
         cmd_w = RCommandWriter.create_writer(command)
-        # print(cmd_w.write_command_call())
-        create_R_file(cmd_w,opt_w)
+        commands += cmd_w.write_command_call()
+
+    write_R_file("../PercentageFeatureSet_res.R", dep_w.write(), opt_w.write_declarations(), preproc_w.write_preprocess(), commands)
