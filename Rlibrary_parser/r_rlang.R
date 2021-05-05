@@ -2,26 +2,44 @@ library('readr')
 library('rlang')
 library('pracma')
 
+################# PRE TREATMENT##################################
 
-#Get the file wanted for parsing
+#Get the file wanted for parsing, by taking the cli arguments here
 args = commandArgs(trailingOnly = TRUE)
 R_file = read_file(file=args[1]);
 look_to = args[2];
 new_arg = parse_exprs(args[3])
+#Transform txt into R expression
 R_file_exp =  parse_exprs(R_file);
 good_call <- 'call not found'
 condition2 <- TRUE
-#Function to create the tree of calls in a R script and returns infos about the call wanted
+
+#########################FUNCTIONS#####################################
+
+#'Function to create the tree of calls in a R script and returns infos about the call wanted
+#' @param call a piece of R scripcontaining the R function we want to extract infos from MUST BE A R EXPRESSION
+#' @param name the nameof the function we want to wrapp and get infos from (char)
+#' @return good_call a rlang call object that contain all the param names and default values that are intersting for wrapping
+#' @example
+#'
+#' recursive.tree(" function1 <- function(param1 = blabla, param2 = bloblo) { ... } \n function2 <- function(param1 = blibli, param2 = bleble) {...}" , "function1")
+#' this will return good_call containing :
+#' function(param1 = blabla, param2 = bloblo) { ... }
+#'
 recursive.tree <- function(call, name) {
                 condition = 0
+                #while we do not navigate through every call and while we do not found a call named like the function we are looking for we keep going
                 while (condition < length(call)&&condition2 == TRUE){
                         condition=condition+1
+                        #if we have a : a <- b scheme
                         if (is_symbol(call[[condition]])){
+                                #if one of the element of ["a","<-","b"] is equal to name
                                 if (all(as_string(call[[condition]])==name)){
                                         condition2 <<- FALSE
                                         good_call <<- call
                                 }
                         }else if(is_call(call[[condition]])){
+                                #keep creating the tree
                                 if(all(call_name(call[[condition]])==name)){
                                         condition2 <<- FALSE
                                         good_call <<- call[[condition]]
@@ -29,10 +47,11 @@ recursive.tree <- function(call, name) {
                                 recursive.tree(call_args(call[[condition]]), name)
                         }
                 }
+        #return good_call, the call that respond to these scheme : ["name","<-",good_call]
         return (good_call)
         }
 
-#Function that create a matrix with all infos about args
+#Function that create a matrix with all name , default values and type of the function we want to wrapp
 info.matrix<- function(liste){
         matrice <- c('name','default','type')
         for(k in (1:length(liste))){
@@ -43,7 +62,7 @@ info.matrix<- function(liste){
                 }
         return(matrice)
         }
-#function that extract infos about the return call
+#function that extract infos about the return call of the function we want to parse
 treat.returncall <- function(returncall){
        print(call_args(returncall))
        returned <- sapply(call_args(returncall),expr_label)
@@ -55,7 +74,7 @@ treat.returncall <- function(returncall){
         }
     }
 
-
+############################# SCRIPT ###########################
 
 #launch the function recursive tree
 to_modify <- recursive.tree(R_file_exp, look_to)

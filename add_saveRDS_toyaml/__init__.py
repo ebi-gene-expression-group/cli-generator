@@ -3,7 +3,10 @@ import yaml
 Add a saveRDS call to a call in a yaml file
 
 """
+
 def curate_string(string):
+    """ this function erase spaces, line jump and '
+    """
     string = string.replace("`","")
     string = string.replace(" ","")
     string = string.replace("\n","")
