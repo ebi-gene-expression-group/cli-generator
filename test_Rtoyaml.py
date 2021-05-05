@@ -3,51 +3,47 @@ import subprocess
 import yaml as yam
 import os
 from Rtoyaml import *
-adresse  = "test.R"
-#adresse  = "monocle_format.R"
-#############templates################################
+
+r_input = "test.R"
+# r_input  = "monocle_format.R"
+
 shebang_R = re.compile("[.]Rscript")
 shebang_R1 = re.compile("R")
 
-###################Functions and class#######################""
-
-
-with open(adresse) as file:
+with open(r_input, 'r') as file:
     txt = file.read()
-    liste = txt.split("\n")
-    dependencie = get_dependencies(txt)
-    get_output(liste)
-    if shebang_R.search(liste[0]) or shebang_R1.search(liste[0]):
-        print("hiiiiii")
+    list_files = txt.split("\n")
+    deps = get_dependencies(txt)
+    get_output(list_files)
+    if shebang_R.search(list_files[0]) or shebang_R1.search(list_files[0]):
         names = get_all_function_r(txt)
-        args = get_args_R(txt,names)
+        args = get_args_R(txt, names)
         dictio = fill_arg(args)
         print(names)
         print("helllo " + str(dictio))
-        for fonction in dictio:
-            dependencie = get_dependencies(txt)
-            for values in dictio[fonction]:
+        for fx_call in dictio:
+            deps = get_dependencies(txt)
+            for values in dictio[fx_call]:
                 try:
-                    classe = get_variable_class(dictio[fonction][values]["default"])
-                    dictio[fonction][values]["type"] = classe
+                    classe = get_variable_class(dictio[fx_call][values]["default"])
+                    dictio[fx_call][values]["type"] = classe
                 except:
                     pass
                 try:
-                    documentation = get_doc(values, fonction, dictio, txt)
-                    dictio[fonction][values]["help"] = documentation
+                    documentation = get_doc(values, fx_call, dictio, txt)
+                    dictio[fx_call][values]["help"] = documentation
                 except:
                     pass
-                print("DICTIOOOOOO \n \n \n")
         command_dict = {}
         all_fonction = []
-        for fonction in dictio:
+        for fx_call in dictio:
             to_append = {}
-            to_append["call"] = fonction
-            to_append["dependencies"] = dependencie
-            to_append["output"] = [{'var_name' : str(fonction)}]
+            to_append["call"] = fx_call
+            to_append["dependencies"] = deps
+            to_append["output"] = [{'var_name' : str(fx_call)}]
             arg_info = []
-            for argument in dictio[fonction]:
-                arg_info.append(dictio[fonction][argument])
+            for argument in dictio[fx_call]:
+                arg_info.append(dictio[fx_call][argument])
             to_append["options"] = arg_info
             #to_append["options_aliases"] =
             #to_append["output"]

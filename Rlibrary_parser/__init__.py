@@ -1,4 +1,4 @@
-'dimport re
+import re
 import subprocess
 import csv
 import yaml as yam
@@ -48,21 +48,21 @@ def get_dependencies(texte):
     return to_import
 
 
-
-
-def find_documentation(function_name, txt_path):
-""" get from a .R the R oxygene (working mostly with seurat type of oxygene)"""
-    with open(txt_path) as txt:
+def find_documentation(function_name, r_code_path):
+    """
+    get from a .R the R oxygene (working mostly with seurat type of oxygene)
+    """
+    with open(r_code_path) as r_code:
         expression = function_name + ' <- '
-        txt = txt.read()
-        splited_txt = txt.split('\n')
+        r_code = r_code.read()
+        splited_txt = r_code.split('\n')
         for element in splited_txt:
             if expression in element:
                 line = splited_txt.index(element)
                 line = line+1
         oxygene = []
         condition = None
-        for k in range(line,0,-1):    
+        for k in range(line, 0, -1):
             if '#' in splited_txt[k]:
                 condition = True
             if condition and '#' not in splited_txt[k]:
@@ -96,12 +96,12 @@ def curate_string2(string):
     return string
 
 def curate_default(string):
-    boolea1 = re.compile("[T,t][R,r][U,u][E,e]")
+    boolean_a = re.compile("[T,t][R,r][U,u][E,e]")
     boolea2 = re.compile("[F,f][A,a][L,l][S,s][E,e]")
     inte = re.compile("[0-9]+")
     floa = re.compile("[0-9.[0-9]")
     nul = re.compile("[N,n][U,u][L,l][L,l]")
-    if boolea1.match(string):
+    if boolean_a.match(string):
         return True
     elif boolea2.match(string):
         return False
@@ -110,10 +110,11 @@ def curate_default(string):
     elif floa.fullmatch(string):
         return float(string)
     elif string == '':
-        return NULL
+        return None
     return string
 
-def curate_type(string):
+
+def convert_type(string):
     if string == "logical":
         return 'boolean'
     if string == 'symbol' or string == 'numeric' or string == 'character':
@@ -175,7 +176,7 @@ with open(adresse) as file:
                 arg_infos = {}
                 arg_infos['long'] = curate_string(element[0])
                 arg_infos['default'] = curate_default(curate_string(element[1]))
-                arg_infos['type'] = curate_type(find_right_type(curate_string(element[2])))
+                arg_infos['type'] = convert_type(find_right_type(curate_string(element[2])))
                 arg_infos['help'] = curate_string2(sort_documentation(curate_string(element[0]), documentation))
                 print(repr(arg_infos['help']))
                 function_call['options'].append(arg_infos)

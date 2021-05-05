@@ -1,8 +1,12 @@
 import re
 import yaml as yam
 
-def curate_string(string):
+def remove_space(string):
     string = string.replace(" ", "")
+    # from G's clean zip
+    # why move ) because it tricks the re and think its a group if not
+    string = string.replace(")", "[.]")
+    string = string.replace("(", "[.]")
     return string
 
 
@@ -126,11 +130,12 @@ def converter(Rdpath):
                 arg_dict = {}
                 argument = arg_template.search(line)
                 if argument != None:
-                    arg_dict['long'] = curate_string(argument.group(1))
+                    arg_dict['long'] = remove_space(argument.group(1))
                     arg_dict['default'] = curate_default(argument.group(2))
                     arg_dict['type'] = yaml_type(arg_dict['default'])
                     transformed_txt = Rdtxt.split("\n")
-                    arg_help_temp = re.compile(r'item\{' + arg_dict['long'])
+                    # use [1:] because of re parsing problem see: bad escape \s at position error
+                    arg_help_temp = re.compile(r'item[.]*' + arg_dict['long'][1:])
                     #run though the .Rd and search where the help template start
                     for element in transformed_txt:
                         arg_help = arg_help_temp.search(element)
@@ -168,7 +173,7 @@ def converter(Rdpath):
                     argument = arg_template.search(line)
                     if argument != None:
                         #write the dictionnary to be .yaml writable
-                        arg_dict['long'] = curate_string(argument.group(1))
+                        arg_dict['long'] = remove_space(argument.group(1))
                         arg_dict['default'] = curate_default(argument.group(2))
                         arg_dict['type'] = yaml_type(arg_dict['default'])
                         transformed_txt = Rdtxt.split("\n")

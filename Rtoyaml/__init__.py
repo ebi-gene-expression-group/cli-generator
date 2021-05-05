@@ -10,7 +10,8 @@ def get_all_function_r(txt):
     names = function_name.findall(txt)
     return names
 
-def get_args_R(txt,names):
+
+def get_args_R(txt, names):
     """ get arguments of a specific function return them under a list"""
     all_args = []
     for name in names:
@@ -23,6 +24,7 @@ def get_args_R(txt,names):
         all_args.append(args)
         print(args)
     return(all_args)
+
 
 def get_variable_class(variable):
     """take as input a variable=x string"""
