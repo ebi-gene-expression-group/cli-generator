@@ -7,11 +7,11 @@ setup(
     version='0.1',
     description='A package wich make easier the creation of R cli wrappers',
     url='https://github.com/ebi-gene-expression-group/cli-generator',
-    author='Pablo Moreno & Guilhem Marnier',
-    author_email='pmoreno at ebi dot ac dot uk & marnierg at gmail dot com',
+    author='Pablo Moreno, Guilhem Marnier',
+    author_email='',
     packages=find_packages(),
-    license= 'MIT',
-    install_requires=['PyYAML','jinja2'],
+    license='MIT',
+    install_requires=['PyYAML', 'jinja2'],
 
     classifiers=[
         'Development Status :: 1 - Planning',

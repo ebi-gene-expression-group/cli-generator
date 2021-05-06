@@ -1,20 +1,22 @@
 import yaml 
 """
 Add a saveRDS call to a call in a yaml file
-
 """
 
-def curate_string(string):
+
+def remove_spaces_breaks_apos(string):
     """ this function erase spaces, line jump and '
     """
-    string = string.replace("`","")
-    string = string.replace(" ","")
-    string = string.replace("\n","")
+    string = string.replace("`", "")
+    string = string.replace(" ", "")
+    string = string.replace("\n", "")
     return string
 
 
 def modify_all_simple_dict_values(data):
-    """recursive function to go through a dictionnary, stops when find a 'var_name' key, and save the var_name in global
+    """
+    Recursive function to go through a dictionnary,
+    stops when find a 'var_name' key, and save the var_name in global
     """
     if isinstance(data, dict):
         for k, v in data.items():       
@@ -33,7 +35,7 @@ def modify_all_simple_dict_values(data):
     
 
 with open(path) as file:
-    docs = yaml.load(file,Loader=yaml.FullLoader)
+    docs = yaml.load(file, Loader=yaml.FullLoader)
     modify_all_simple_dict_values(docs)
     #recursivly look for 'var_name' in the dictionnary
     if var_to_save == None:
@@ -42,9 +44,10 @@ with open(path) as file:
         #if var_name key exist, add a new saveRDS call to the dictionnary and then dump it in the original yaml
         to_add = {}
         to_add["call"] = "saveRDS"
-        to_add["options"] = [{'long' : 'object', 'type' : 'internal', 'var_name' : curate_string(var_to_save)}, {'long' : 'file', 'type'  : 'file_out'}]
+        to_add["options"] = [{'long' : 'object', 'type' : 'internal', 'var_name' : remove_spaces_breaks_apos(var_to_save)}, {'long' : 'file', 'type'  : 'file_out'}]
         docs["commands"].append(to_add)
-with open(path, "w") as file:    
+
+with open(path, "w") as file:
     yaml.dump(docs, file)
 
        

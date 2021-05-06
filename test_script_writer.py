@@ -49,7 +49,6 @@ def test_script_writing():
         print(cmd_w.write_command_call())
 
     with open("R_file.R", 'w+') as r_file:
-
         for element in to_be_writed:
             r_file.write(dedent(element))
 
