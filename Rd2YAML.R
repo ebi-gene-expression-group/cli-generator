@@ -8,25 +8,49 @@
 library(yaml)
 
 options <- commandArgs(trailingOnly = TRUE)
-if(length(options)<4) {
-  print("Please provide 4 arguments in this order: ")
+if(length(options)<1) {
+  print("Please provide up to 4 arguments, in this order: ")
   print(" - package name, for example Seurat")
   print(" - Rd name, for instance ScaleData.Rd. For a package, Rd names can be found through `db <- tools::Rd_db(package)`")
   print(" - tool name, for instance ScaleData")
   print(" - YAML output file path")
 }
 package<-options[1] # Seurat
-rdName<-options[2] # ScaleData.Rd
-tool<-options[3] # ScaleData
-yaml_output<-options[4] # output path
 
 # Get db for tool
 db <- tools::Rd_db(package)
-# inspect with
-# head(names(db))
+
+if(length(options)<2) {
+  print("Rds available for package:")
+  print(names(db))
+  print("..use one of the above as the next argument.")
+  quit(save="no",status=0)
+}
+rdName<-options[2] # ScaleData.Rd
 
 # Pick a tool from the names:
 Rd<-db[[rdName]]
+
+if(length(options)<3) {
+  print("Calls available for Rds and package selected:")
+  tags<-tools:::RdTags(Rd)
+  # Locate the usage
+  usage_index<-match("\\usage", tags)
+  usage<-Rd[[usage_index]]
+  method_indexes<-which(tools:::RdTags(usage) %in% "\\method")
+  for(index in method_indexes) {
+      print(paste(unlist(usage[[index]][1]),unlist(usage[[index]][2]), sep=" ") )
+  }
+  print("...use one of the above first tokens as the next argument.")
+  quit(save="no", status=0)
+}
+
+tool<-options[3] # ScaleData
+yaml_output<-options[4] # output path
+
+# inspect with
+# head(names(db))
+
 tool_level<-package
 
 get_usage_arguments<-function(Rd, tool, tool_level) {
@@ -78,7 +102,7 @@ get_usage_arguments<-function(Rd, tool, tool_level) {
 
   # Identifiy types of arguments based on examples
   for(i in 1:length(args_usage)) {
-    if(args_usage[[i]]$default == "NULL" || args_usage[[i]]$default == "NA")
+    if(args_usage[[i]]$default == "NULL" || args_usage[[i]]$default == "NA" )
       next
     if(!is.na(as.numeric(args_usage[[i]]$default))) {
       if(!is.na(as.integer(args_usage[[i]]$default))) {
@@ -139,6 +163,7 @@ for(u in 1:length(u_args)) {
 
 call<-list()
 call$call<-tool
+call$dependencies<-c(package)
 call$options<-u_args
 call$output<-list()
 
