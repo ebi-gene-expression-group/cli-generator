@@ -161,7 +161,7 @@ class ROptionsDeclarationWriter(RSectionWriter):
                 if str(option._long()) == str(other_option._long()):
                     dont_write += 1
             if dont_write > 1:
-                print("WARNING SAME -LONG USED MULTIPLE TIME TCHECK THE .yaml : " + str(option._long()))
+                print("WARNING SAME - LONG USED MULTIPLE TIME CHECK THE .yaml : " + str(option._long()))
                 self.options.pop(self.options.index(option))
                 continue
             if option.is_declarable:

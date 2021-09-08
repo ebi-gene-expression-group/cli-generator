@@ -104,6 +104,10 @@ class ROption(Option):
             return StringListOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'internal':
             return InternalVarROption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'integer':
+            return IntegerROption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'double':
+            return DoubleROption(dict_with_slots=option_dict)
 
     def option_maker(self):
         """
@@ -225,6 +229,10 @@ class CharacterROption(ROption):
 class DoubleROption(ROption):
     def _type(self):
         return 'double'
+
+class IntegerROption(ROption):
+    def _type(self):
+        return 'integer'
 
 
 class FileROption(CharacterROption):
