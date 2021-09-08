@@ -102,7 +102,7 @@ get_usage_arguments<-function(Rd, tool, tool_level) {
 
   # Identifiy types of arguments based on examples
   for(i in 1:length(args_usage)) {
-    if(args_usage[[i]]$default == "NULL" || args_usage[[i]]$default == "NA" )
+    if(!exists("default",where=args_usage[[i]]) || args_usage[[i]]$default == "NULL" || args_usage[[i]]$default == "NA" )
       next
     if(!is.na(as.numeric(args_usage[[i]]$default))) {
       if(!is.na(as.integer(args_usage[[i]]$default))) {
@@ -155,8 +155,10 @@ a_args<-get_arguments_arguments(Rd, tool)
 
 for(u in 1:length(u_args)) {
   for(a in 1:length(a_args)) {
-    if(u_args[[u]]$long == a_args[[a]]$long) {
-      u_args[[u]]$help<-a_args[[a]]$help
+    if(exists("long",where=u_args[[u]]) && exists("long",where=a_args[[a]])) { 
+      if(u_args[[u]]$long == a_args[[a]]$long) {
+        u_args[[u]]$help<-a_args[[a]]$help
+      }
     }
   }
 }
