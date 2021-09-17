@@ -92,6 +92,8 @@ class ROption(Option):
     def create_option(option_dict, aliases_dict=None):
         super(ROption, ROption).create_option(option_dict=option_dict)
 
+        if option_dict['type'] == 'string' and "evaluated" in option_dict and option_dict['evaluated']:
+            return EvaluatedROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'string':
             return CharacterROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'boolean':
@@ -197,6 +199,10 @@ class ROption(Option):
             return None
         if self.elements['default'] is None:
             return "NULL"
+        if self.elements['default'] == 'NULL':
+            return "NULL"
+        if isinstance(self.elements['default'], int) or isinstance(self.elements['default'], float):
+            return self.elements['default']
         return "'{}'".format(self.elements['default'])
 
 
@@ -288,6 +294,32 @@ class BooleanROption(BooleanOption, ROption):
         else:
             return "FALSE"
 
+class EvaluatedROption(CharacterROption):
+    """
+    Useful for cases such as dims = 1:30 or dims = c(1,2,30), which need to be evaluated. They will come as inputs
+    like text "1:30" or "1,3,5" and then need to be evaluated in R to be used.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.has_preprocess = True
+
+    def pre_process(self):
+        """
+        Produce code to evaluate in R as an expression
+        :return:
+        """
+
+        evaluate_t = Template("""
+        if (! is.null({{ option_var }}) ) {
+            {{ option_var }} <- eval(parse(text={{ option_var }}))
+        }
+        """)
+
+        output = evaluate_t.render(long_value=self.long_value(),
+                                   option_var=self._option_variable())
+
+        return dedent(output)
 
 class StringListOption(CharacterROption):
 
@@ -366,8 +398,8 @@ class GalaxyOption(Option):
             return GalaxyOutputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'internal':
             return None
-        # if option_dict['type'] == 'list':
-        #     return StringListOption(dict_with_slots=option_dict)
+        #if option_dict['type'] == 'list':
+        #    return StringListOption(dict_with_slots=option_dict)
         # if option_dict['type'] == 'internal':
         #     return InternalVarROption(dict_with_slots=option_dict)
 
