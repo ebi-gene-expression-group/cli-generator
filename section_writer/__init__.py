@@ -156,11 +156,13 @@ class ROptionsDeclarationWriter(RSectionWriter):
         make_calls = list()
         mandatory = list()
         for option in self.options:
-            dont_write = 0
+            write = True
             for other_option in self.options:
+                if option == other_option:
+                    continue
                 if str(option._long()) == str(other_option._long()):
-                    dont_write += 1
-            if dont_write > 1:
+                    write = False
+            if not write:
                 print("WARNING SAME - LONG USED MULTIPLE TIME CHECK THE .yaml : " + str(option._long()))
                 self.options.pop(self.options.index(option))
                 continue

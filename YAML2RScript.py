@@ -21,13 +21,10 @@ for command in script_data['commands']:
     all_opts.extend(command['options'])
 
 dep_w = RDependencies(script_data['commands'])
-# print(dep_w.write())
 
 opt_w = ROptionsDeclarationWriter(all_opts)
-# print(opt_w.write_declarations())
 
 preproc_w = RPreprocessWriter(all_opts)
-# print(preproc_w.write_preprocess())
 
 commands = ""
 for command in script_data['commands']:
