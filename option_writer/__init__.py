@@ -110,6 +110,9 @@ class ROption(Option):
             return IntegerROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'double':
             return DoubleROption(dict_with_slots=option_dict)
+        else:
+            print(f"Option type {option_dict['type']} is not recognised...")
+            exit(1)
 
     def option_maker(self):
         """
@@ -125,16 +128,16 @@ class ROption(Option):
         :return: text as specified
         """
         maker_t = Template("""make_option(
-                    c('{{ flags }}'),
-                    action='{{ action }}',
+                    c("{{ flags }}"),
+                    action = "{{ action }}",
                     {% if 'default' in elements -%}
-                    default={{ default }},
+                    default = {{ default }},
                     {% endif -%}
                     {% if 'human_readable' in elements -%}
-                    metavar='{{ human_readable }}',
+                    metavar = "{{ human_readable }}",
                     {% endif -%}
-                    type='{{ type }}',
-                    help='{{ help }}')
+                    type = "{{ type }}",
+                    help = "{{ help }}")
                     """)
 
         output = maker_t.render(flags=self._short_and_long(),
@@ -159,7 +162,7 @@ class ROption(Option):
 
     def _short_and_long(self):
         if 'short' in self.elements and 'long' in self.elements:
-            return "-{}','--{}".format(self.elements['short'], self._long())
+            return "-{}\", \"--{}".format(self.elements['short'], self._long())
         elif 'short' in self.elements:
             return "-{}".format(self.elements['short'])
         elif 'long' in self.elements:
@@ -203,7 +206,7 @@ class ROption(Option):
             return "NULL"
         if isinstance(self.elements['default'], int) or isinstance(self.elements['default'], float):
             return self.elements['default']
-        return "'{}'".format(self.elements['default'])
+        return f"\"{self.elements['default']}\""
 
 
 class InternalVarROption(ROption):
@@ -258,8 +261,8 @@ class FileInputROption(FileROption):
         """
 
         file_exists_t = Template("""
-        if ( ! file.exists({{ path }}) ) {
-            stop((paste('File', {{ path }}, 'does not exist')))
+        if (!file.exists({{ path }})) {
+            stop((paste("File", {{ path }}, "does not exist")))
         }
         """)
         output = file_exists_t.render(path=self._option_variable())
@@ -311,8 +314,8 @@ class EvaluatedROption(CharacterROption):
         """
 
         evaluate_t = Template("""
-        if (! is.null({{ option_var }}) ) {
-            {{ option_var }} <- eval(parse(text={{ option_var }}))
+        if (!is.null({{ option_var }})) {
+            {{ option_var }} <- eval(parse(text = {{ option_var }}))
         }
         """)
 
@@ -335,7 +338,7 @@ class StringListOption(CharacterROption):
         """
         return "{} = {}".format(self.library_arg(), self.long_value())
 
-    def pre_process(self, tok_fun_name="unlist(strsplit({}, sep=','))"):
+    def pre_process(self, tok_fun_name="unlist(strsplit({}, sep = \",\"))"):
         """
         Produce code to tokenize list into parts
         :param tok_fun_name: the call to be used to untokenize.
@@ -344,7 +347,7 @@ class StringListOption(CharacterROption):
 
         tokenise_t = Template("""
         {{ long_value }} <- {{ option_var }}
-        if (! is.null({{ long_value }}) ) {
+        if (!is.null({{ long_value }})) {
             {{ long_value }} <- {{ tok_fun }}
         }
         """)

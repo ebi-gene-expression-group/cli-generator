@@ -182,7 +182,7 @@ option_list <- list(
 {%- endfor %})
 
 opt <- wsc_parse_args(option_list, 
-                      mandatory = c({%- for m in mandatory -%}{%- if not loop.last -%}'{{ m }}',{%- else -%}'{{ m }}'{%- endif -%}{%- endfor -%} ))
+                      mandatory = c({%- for m in mandatory -%}{%- if not loop.last -%}"{{ m }}", {% else -%}"{{ m }}"{%- endif -%}{%- endfor -%} ))
                 """)
         return dedent(make_calls_t.render(calls=[call for call in make_calls if call],
                                           mandatory=mandatory))
