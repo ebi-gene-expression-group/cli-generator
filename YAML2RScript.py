@@ -31,4 +31,23 @@ for command in script_data['commands']:
     cmd_w = RCommandWriter.create_writer(command)
     commands += cmd_w.write_command_call()
 
-write_R_file(args.output, dep_w.write(), opt_w.write_declarations(), preproc_w.write_preprocess(), commands)
+# get the entire command for reproducibility - this should be refactored into a class
+import sys
+command = " ".join(sys.argv)
+message = f"""
+# This script has been automatically generated through
+#
+# {command}
+#
+# to change this file edit the input YAML and re-run the above command
+"""
+
+write_R_file(args.output, message, dep_w.write(), opt_w.write_declarations(), preproc_w.write_preprocess(), commands)
+
+# make script executable for the user
+import os
+import stat
+
+st = os.stat(args.output)
+os.chmod(args.output, st.st_mode | stat.S_IEXEC)
+
