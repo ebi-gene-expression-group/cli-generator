@@ -38,6 +38,10 @@ if(length(options)<3) {
   usage_index<-match("\\usage", tags)
   usage<-Rd[[usage_index]]
   method_indexes<-which(tools:::RdTags(usage) %in% "\\method")
+  if(length(method_indexes) == 0) {
+    print("The chosen Rd has no method sections, sorry...")
+    quit(save="no", status=1)
+  }
   for(index in method_indexes) {
       print(paste(unlist(usage[[index]][1]),unlist(usage[[index]][2]), sep=" ") )
   }
