@@ -69,6 +69,9 @@ class Option:
     def is_optional(self):
         return 'optional' in self.elements and self.elements['optional']
 
+    def __str__(self):
+        return self.elements['long']
+
 
 class BooleanOption(Option):
     """
@@ -298,6 +301,7 @@ class BooleanROption(BooleanOption, ROption):
         else:
             return "FALSE"
 
+
 class EvaluatedROption(CharacterROption):
     """
     Useful for cases such as dims = 1:30 or dims = c(1,2,30), which need to be evaluated. They will come as inputs
@@ -324,6 +328,7 @@ class EvaluatedROption(CharacterROption):
                                    option_var=self._option_variable())
 
         return dedent(output)
+
 
 class StringListOption(CharacterROption):
 
@@ -387,7 +392,7 @@ class GalaxyOption(Option):
         :return:
         """
         if 'help' in self.elements:
-        return self.elements['help'].replace("\"", "'")
+            return self.elements['help'].replace("\"", "'")
         else:
             logging.warning(f"Element {self._long()} has no help!")
 

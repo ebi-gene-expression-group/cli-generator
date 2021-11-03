@@ -14,8 +14,6 @@ for the case of R methods.
 
 # YAML structure
 
-
-
 ## YAML generation for R methods
 
 Given a set of functions that are desired for a specific
@@ -114,6 +112,43 @@ that all options have a valid type and that help fields don't have conflicting q
 # source cli-generator pip environment
 python YAML2RScript.py -i curated_YAML.yaml -o path/to/resulting/my-script.R
 ```
+
+# Macro mapping
+
+Some Galaxy tools might need to replace sets of command lines and declaration parts
+for groups of options. For instance, a set of options that define the input might
+have their logic for declaration and/or commands be part of macros, as they will be used
+for many tools.
+
+We define a YAML structure to codify such association between groups of options and macros.
+This YAML contains an array, where each element contains the tuple `(option_group, pre_command_macros, post_command_macros,
+input_declarations, output_declarations)`. For instance:
+
+```
+---
+- option_group:
+    - input-object-file
+    - input-format
+  pre_command_macros:
+    - INPUT_OBJ_PREAMBLE
+  post_command_macros:
+    - INPUT_OBJECT
+  input_declaration_macros:
+    - input_object_params
+- option_group:
+    - output-object-file
+    - output-format
+  post_command_macros:
+    - OUTPUT_OBJECT
+  output_declaration_macros:
+    - output_object_params
+```
+
+This means that if on our set of options, we have options with long `input-object-file` AND `input-format`,
+then these two options won't be treated directly by the option/section writer, but instead
+they will be skipped and the `pre_command_macros`, `post_command_macros` and `input_declaration_macros`
+will be written instead.
+
 
 
 

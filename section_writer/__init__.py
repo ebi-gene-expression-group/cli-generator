@@ -35,18 +35,19 @@ class need_wsc:
         self.corrected_options = list_of_options
         numeric_temp  = re.compile("[1-9]+:[1-9]+")
         for option in self.corrected_options:
-            if 'default' in option and  option['default'] != None:
+            if 'default' in option and option['default'] is not None:
                 str_default = str(option['default'])
                 if ',' in str(str_default):
-                    #if ',' in option['default'] it trigger a call for wsc_split_string
+                    # if ',' in option['default'] it trigger a call for wsc_split_string
                     self.needsplit.append(option['long'])
                     option['var_name'] = option['long']
                     option['type'] = 'internal'
-                elif numeric_temp.search(str_default) != None:
-                    #if a:b template in option['default'] it trigger a call for wsc_parse_numeric
+                elif numeric_temp.search(str_default) is not None:
+                    # if a:b template in option['default'] it trigger a call for wsc_parse_numeric
                     self.neednumeric.append(option['long'])
                     option['var_name'] = option['long']
                     option['type'] = 'internal'
+
     def write(self):
         """
         return a string with wsc_parse_numeric template
@@ -64,7 +65,6 @@ class need_wsc:
         return dedent(numeric_temp.render(neednumeric=self.neednumeric) + split_temp.render(needsplit=self.needsplit))
 
 
-
 class RsaveRDS:
     """
     Writes the saveRDS section
@@ -80,8 +80,9 @@ class RsaveRDS:
                 else:
                     self.needsave.append(command['output'][0]['var_name'])
                     break
+
     def return_type(self,var):
-        #just check is variable is a list
+        # just check is variable is a list
         if type(var) == list:
             return ''
         else:
@@ -111,7 +112,7 @@ class Ropeninglibrary:
         self.needformat = False
         for option in list_of_options:
             if option['long'] == 'input_format':
-                #if 'input_format' in one of the option['long'] it trigger the creation of the following section
+                # if 'input_format' in one of the option['long'] it trigger the creation of the following section
                 self.needformat = True
 
     def write(self):
@@ -127,7 +128,6 @@ class Ropeninglibrary:
 {% endif %}
         """)
         return dedent(format_temp.render(needformat=self.needformat))
-
 
 
 class RDependencies:
@@ -191,7 +191,7 @@ opt <- wsc_parse_args(option_list,
 class RPreprocessWriter(RSectionWriter):
 
     def write_preprocess(self):
-        #pre_process_calls = [option.pre_process() for option in self.options if option.has_preprocess]
+        # pre_process_calls = [option.pre_process() for option in self.options if option.has_preprocess]
         pre_process_calls = []
         for option in self.options:
             if option.has_preprocess:
@@ -202,7 +202,6 @@ class RPreprocessWriter(RSectionWriter):
 {% endfor -%}
                 """)
         return dedent(pre_process_calls_t.render(calls=pre_process_calls))
-
 
 
 class RCommandWriter(RSectionWriter):
@@ -274,17 +273,46 @@ class RSingleResultCommandWriter(RCommandWriter):
 
 
 class GalaxySectionWriter:
+
     def __init__(self, options_dict_list):
         self.options = [GalaxyOption.create_option(option) for option in options_dict_list
                         if GalaxyOption.create_option(option) is not None]
 
+    def _define_macros(self, macro_mapper=None):
+        self.macro = {}
+        for macro_type in self.MACROS:
+            self.macro[macro_type] = []
+
+        # look for options that map to macros
+        for group in macro_mapper:
+            if set(group['option_group']).issubset([str(option) for option in self.options]):
+                # add macros
+                [self.macro[macro_type].extend(group[macro_type])
+                 for macro_type in self.MACROS if macro_type in group]
+                # remove the options now that they have been replaced by macros
+                to_rm_options = [opt for opt in self.options if str(opt) in group['option_group']]
+                for rm_opt in to_rm_options:
+                    self.options.remove(rm_opt)
+
 
 class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
+
+    INPUT_DECLARATION_MACROS = 'input_declaration_macros'
+    OUTPUT_DECLARATION_MACROS = 'output_declaration_macros'
+
+    MACROS = [INPUT_DECLARATION_MACROS, OUTPUT_DECLARATION_MACROS]
+
+    def __init__(self, options_dict_list, macro_mapper=[]):
+        super(GalaxyOptionsDeclarationWriter, self).__init__(options_dict_list)
+        self._define_macros(macro_mapper)
 
     def write_declarations(self):
 
         inputs_t = Template("""
                 <inputs>
+                {%- for input_macro in i_dec_macros %}
+                    <expand macro="{{ input_macro }}"/>
+                {%- endfor %}
                 {%- for option in i_options %}
                     {{ option.option_maker() }}
                 {%- endfor %} 
@@ -293,6 +321,9 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
 
         outputs_t = Template("""
                 <outputs>
+                {%- for output_macro in o_dec_macros %}
+                    <expand macro="{{ output_macro }}"/>
+                {%- endfor %}
                 {%- for option in o_options %}
                     {{ option.option_maker() }}
                 {%- endfor %}
@@ -300,26 +331,49 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
         """)
 
         result = dedent(inputs_t.render(
-            i_options=[option for option in self.options if isinstance(option, GalaxyInputOption)]))
+            i_options=[option for option in self.options if isinstance(option, GalaxyInputOption)],
+            i_dec_macros=self.macro[self.INPUT_DECLARATION_MACROS])
+        )
 
         result += dedent(outputs_t.render(
-            o_options=[option for option in self.options if isinstance(option, GalaxyOutputOption)]))
+            o_options=[option for option in self.options if isinstance(option, GalaxyOutputOption)],
+            o_dec_macros=self.macro[self.OUTPUT_DECLARATION_MACROS])
+        )
 
         return result
 
 
 class GalaxyCommandWriter(GalaxySectionWriter):
 
+    PRE_COMMAND_MACROS = 'pre_command_macros'
+    POST_COMMAND_MACROS = 'post_command_macros'
+
+    MACROS = [PRE_COMMAND_MACROS, POST_COMMAND_MACROS]
+
+    def __init__(self, options_dict_list, macro_mapper=[]):
+        super(GalaxyCommandWriter, self).__init__(options_dict_list)
+        self._define_macros(macro_mapper)
+
     def write_command(self):
 
         command_t = Template(
             """
             <command detect_errors="exit_code"><![CDATA[
+                {% for pre_cmd_macro in pre_cmd_macros -%}
+                    @{{ pre_cmd_macro }}@
+                {% endfor %}
+                command
+                {% for post_cmd_macro in post_cmd_macros -%}
+                    @{{ post_cmd_macro }}@
+                {% endfor %}
                 {%- for option in options -%}
                     {{ option.option_caller() }}
                 {%- endfor %}    
             ]]</command>
             """)
 
-        command = dedent(command_t.render(options=self.options))
+        command = dedent(command_t.render(options=self.options,
+                                          pre_cmd_macros=self.macro[self.PRE_COMMAND_MACROS],
+                                          post_cmd_macros=self.macro[self.POST_COMMAND_MACROS]
+                                          ))
         return command
