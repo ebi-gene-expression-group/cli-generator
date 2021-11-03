@@ -446,7 +446,7 @@ class GalaxyInputOption(GalaxyOption):
         return super()._type()
 
     def _galaxy_default_declaration(self):
-        if self.has_default:
+        if self.has_default and str(self._default()) != "'NULL'":
             return "optional='true' value='{}'".format(str(self._default()).replace("'", ""))
         elif self.is_optional():
             return "optional='true'"
