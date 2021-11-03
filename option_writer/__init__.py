@@ -1,5 +1,6 @@
 from textwrap import dedent
 from jinja2 import Template
+import logging
 
 
 class Option:
@@ -385,7 +386,11 @@ class GalaxyOption(Option):
         Takes help, but replacing " for ' to avoid issues in the Galaxy help field.
         :return:
         """
+        if 'help' in self.elements:
         return self.elements['help'].replace("\"", "'")
+        else:
+            logging.warning(f"Element {self._long()} has no help!")
+
 
     @staticmethod
     def create_option(option_dict, aliases_dict=None):
