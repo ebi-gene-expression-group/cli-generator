@@ -305,6 +305,10 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
     def __init__(self, options_dict_list, macro_mapper=[]):
         super(GalaxyOptionsDeclarationWriter, self).__init__(options_dict_list)
         self._define_macros(macro_mapper)
+        self.advanced_options = [option for option in self.options if 'advanced' in option.elements]
+        if self.advanced_options:
+            for adv_o in self.advanced_options:
+                self.options.remove(adv_o)
 
     def write_declarations(self):
 
@@ -316,6 +320,13 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
                 {%- for option in i_options %}
                     {{ option.option_maker() }}
                 {%- endfor %} 
+                {%- if i_adv_options %}
+                    <section name="adv" title="Advanced options">
+                    {%- for adv_option in i_adv_options %}
+                        {{ adv_option.option_maker() }}
+                    {%- endfor %}
+                    </section>
+                {%- endif %}
                 </inputs>
         """)
 
@@ -332,6 +343,7 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
 
         result = dedent(inputs_t.render(
             i_options=[option for option in self.options if isinstance(option, GalaxyInputOption)],
+            i_adv_options=[option for option in self.advanced_options if isinstance(option, GalaxyInputOption)],
             i_dec_macros=self.macro[self.INPUT_DECLARATION_MACROS])
         )
 
@@ -369,7 +381,7 @@ class GalaxyCommandWriter(GalaxySectionWriter):
                 {%- for option in options -%}
                     {{ option.option_caller() }}
                 {%- endfor %}    
-            ]]</command>
+            ]]></command>
             """)
 
         command = dedent(command_t.render(options=self.options,

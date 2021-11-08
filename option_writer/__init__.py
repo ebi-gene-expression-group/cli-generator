@@ -45,7 +45,7 @@ class Option:
 
     def _human_readable(self):
         if 'human_readable' not in self.elements:
-            return self.elements['long'].capitalize()
+            return self.elements['long'].capitalize().replace(".", " ")
         return self.elements['human_readable']
 
     def _long(self):
@@ -243,6 +243,7 @@ class DoubleROption(ROption):
     def _type(self):
         return 'double'
 
+
 class IntegerROption(ROption):
     def _type(self):
         return 'integer'
@@ -370,8 +371,12 @@ class GalaxyOption(Option):
     """
     Base Galaxy option class
     """
-    def long_value(self):
-        return self.elements['long'].replace("-", "_")
+    def long_value(self, prefix_advanced: bool = False):
+        lv = self.elements['long'].replace("-", "_").replace(".", "_")
+        if prefix_advanced:
+            if 'advanced' in self.elements and self.elements['advanced']:
+                lv = f"adv.{lv}"
+        return lv
 
     def option_caller(self):
         caller_t = Template("""
@@ -384,7 +389,7 @@ class GalaxyOption(Option):
             {% endif -%}
         """)
 
-        return dedent(caller_t.render(long=self._long(), long_value=self.long_value(), optional=self.is_optional()))
+        return dedent(caller_t.render(long=self._long(), long_value=self.long_value(True), optional=self.is_optional()))
 
     def _help(self):
         """
@@ -478,7 +483,7 @@ class BooleanGalaxyOption(BooleanOption, GalaxyInputOption):
     Galaxy boolean option writer, handles
     """
     def option_caller(self):
-        return "'${}'".format(self.long_value())
+        return "${}\n".format(self.long_value(prefix_advanced=True))
 
     def _boolean_declare(self):
         """
