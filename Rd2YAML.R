@@ -39,13 +39,13 @@ if(length(options)<3) {
   usage<-Rd[[usage_index]]
   method_indexes<-which(tools:::RdTags(usage) %in% "\\method")
   if(length(method_indexes) == 0) {
-    print("The chosen Rd has no method sections, sorry...")
-    quit(save="no", status=1)
+    print("The chosen Rd has no method sections, doing our best... use the function name as next argument.")
+  } else {
+    for(index in method_indexes) {
+        print(paste(unlist(usage[[index]][1]),unlist(usage[[index]][2]), sep=" ") )
+    }
+    print("...use one of the above first tokens as the next argument.")
   }
-  for(index in method_indexes) {
-      print(paste(unlist(usage[[index]][1]),unlist(usage[[index]][2]), sep=" ") )
-  }
-  print("...use one of the above first tokens as the next argument.")
   quit(save="no", status=0)
 }
 
@@ -68,26 +68,34 @@ get_usage_arguments<-function(Rd, tool, tool_level) {
   # remove blank lines and use this to come up with list of parameters
   # and expected types.
   method_indexes<-which(tools:::RdTags(usage) %in% "\\method")
-  # pick the method index for the desired tool and level
-  method_index=-1
-  upper_bound=-1
-  for(index in method_indexes) {
-    if(tool %in% unlist(usage[[index]]) && tool_level %in% unlist(usage[[index]]) ) {
-      method_index<-index
-      if(index == max(method_indexes))
-        # This is last method, so the upper bound is the length of the usage
-        upper_bound<-length(usage)
-        # this is picking more than it should
-      else
-        upper_bound<-method_indexes[(method_indexes %in% method_index)+1]
-      break
+  args_usage<-list()
+
+  if (length(method_indexes) > 0) {
+    # pick the method index for the desired tool and level
+    method_index=-1
+    upper_bound=-1
+    for(index in method_indexes) {
+      if(tool %in% unlist(usage[[index]]) && tool_level %in% unlist(usage[[index]]) ) {
+        method_index<-index
+        if(index == max(method_indexes))
+          # This is last method, so the upper bound is the length of the usage
+          upper_bound<-length(usage)
+          # this is picking more than it should
+        else
+          upper_bound<-method_indexes[(method_indexes %in% method_index)+1]
+        break
+      }
     }
+    # Go through usage lines for the desired method
+    usage_index_interval<-method_index+1:upper_bound
+  }
+  else {
+    # we have no methods, we assume a single usage to explore
+    usage_index_interval<-seq_len(length(usage))
   }
 
-  args_usage<-list()
-  # Go through usage lines for the desired method
   au_count<-1
-  for(i in method_index+1:upper_bound) {
+  for(i in usage_index_interval) {
     u_stripped<-gsub("[\r\n]", "", usage[i])
     if(startsWith(u_stripped, "(") || startsWith(u_stripped, ")") || length(u_stripped)==0)
       next
@@ -104,8 +112,14 @@ get_usage_arguments<-function(Rd, tool, tool_level) {
     au_count<-au_count+1
   }
 
+
+  toRemove<-c()
   # Identifiy types of arguments based on examples
   for(i in 1:length(args_usage)) {
+    if(!exists("long",where=args_usage[[i]]) || is.na(args_usage[[i]]$long) || startsWith(as.character(args_usage[[i]]$long), tool) ) {
+      toRemove<-c(unlist(toRemove), i)
+      next
+    }
     if(!exists("default",where=args_usage[[i]]) || args_usage[[i]]$default == "NULL" || args_usage[[i]]$default == "NA" )
       next
     if(!is.na(as.numeric(args_usage[[i]]$default))) {
@@ -124,6 +138,10 @@ get_usage_arguments<-function(Rd, tool, tool_level) {
       args_usage[[i]]$default<-gsub("\"", "", args_usage[[i]]$default, fixed = T)
       args_usage[[i]]$type<-"string"
     }
+  }
+
+  if(length(toRemove)>0) {
+    args_usage<-args_usage[-1*toRemove]
   }
   return(args_usage)
 }

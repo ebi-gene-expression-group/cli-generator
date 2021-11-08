@@ -113,6 +113,14 @@ that all options have a valid type and that help fields don't have conflicting q
 python YAML2RScript.py -i curated_YAML.yaml -o path/to/resulting/my-script.R
 ```
 
+## Galaxy code from YAML
+
+Using the same YAML, you can attempt a first Galaxy wrapper by calling:
+
+```
+python YAML2GalaxyTool -i curated_YAML.yaml -o GalaxyTool.xml
+```
+
 # Macro mapping
 
 Some Galaxy tools might need to replace sets of command lines and declaration parts
@@ -147,7 +155,29 @@ input_declarations, output_declarations)`. For instance:
 This means that if on our set of options, we have options with long `input-object-file` AND `input-format`,
 then these two options won't be treated directly by the option/section writer, but instead
 they will be skipped and the `pre_command_macros`, `post_command_macros` and `input_declaration_macros`
-will be written instead.
+will be written instead. And then we call:
+
+```
+python YAML2GalaxyTool -i curated_YAML.yaml -o GalaxyTool.xml -m macro_mapper.yaml
+```
+
+# Advanced options for Galaxy
+
+A subset of options can be grouped for Galaxy purposes under "Advanced options". For this,
+add the "advanced: True" property on each option that should fall under this category.
+
+```
+    options:
+      - long: seurat_object
+        type: internal
+        var_name: seurat_object_umap
+      - long: output-path
+        type: file_out
+      - long: output-format
+        type: string
+        advanced: True
+        default: seurat
+```
 
 
 
