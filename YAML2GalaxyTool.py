@@ -28,7 +28,10 @@ for command in script_data['commands']:
         continue
     all_opts.extend(command['options'])
 
-opt_c = GalaxyCommandWriter(all_opts, macro_mapper=macro_mapper)
+cli_command = None
+if 'cli_call' in script_data:
+    cli_command = script_data['cli_call']
+opt_c = GalaxyCommandWriter(all_opts, command=cli_command, macro_mapper=macro_mapper)
 print(opt_c.write_command())
 
 opt_w = GalaxyOptionsDeclarationWriter(all_opts, macro_mapper=macro_mapper)

@@ -374,9 +374,10 @@ class GalaxyCommandWriter(GalaxySectionWriter):
 
     MACROS = [PRE_COMMAND_MACROS, POST_COMMAND_MACROS]
 
-    def __init__(self, options_dict_list, macro_mapper=[]):
+    def __init__(self, options_dict_list, command=None, macro_mapper=[]):
         super(GalaxyCommandWriter, self).__init__(options_dict_list)
         self._define_macros(macro_mapper)
+        self._command = command
 
     def write_command(self):
 
@@ -386,7 +387,7 @@ class GalaxyCommandWriter(GalaxySectionWriter):
                 {% for pre_cmd_macro in pre_cmd_macros -%}
                     @{{ pre_cmd_macro }}@
                 {% endfor %}
-                command
+                {{ cli_command }}
                 {% for post_cmd_macro in post_cmd_macros -%}
                     @{{ post_cmd_macro }}@
                 {% endfor %}
@@ -397,6 +398,7 @@ class GalaxyCommandWriter(GalaxySectionWriter):
             """)
 
         command = dedent(command_t.render(options=self.options,
+                                          cli_command=self._command,
                                           pre_cmd_macros=self.macro[self.PRE_COMMAND_MACROS],
                                           post_cmd_macros=self.macro[self.POST_COMMAND_MACROS]
                                           ))
