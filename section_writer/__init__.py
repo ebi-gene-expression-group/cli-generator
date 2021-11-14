@@ -218,6 +218,8 @@ class RCommandWriter(RSectionWriter):
             return RSingleResultCommandWriter(command=command['call'],
                                                   options_dict_list=command['options'],
                                                   output=command['output'][0]['var_name'])
+        if 'rcode' in command:
+            return RCodeWriter(code=command['rcode'])
         return RCommandWriter(command=command['call'],
                              options_dict_list=command['options'])
 
@@ -243,6 +245,16 @@ class RCommandWriter(RSectionWriter):
         return dedent(command_t.render(command=self.command,
                                        param_calls=param_calls,
                                        ))
+
+
+class RCodeWriter(RCommandWriter):
+
+    def __init__(self, code, **kwargs):
+        super(RCodeWriter, self).__init__(**kwargs)
+        self.code = code
+
+    def write_command_call(self):
+        return dedent(self.code)
 
 
 class RSingleResultCommandWriter(RCommandWriter):

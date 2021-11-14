@@ -24,6 +24,8 @@ if args.macro_mapper:
 
 all_opts = list()
 for command in script_data['commands']:
+    if 'rcode' in command:
+        continue
     all_opts.extend(command['options'])
 
 opt_c = GalaxyCommandWriter(all_opts, macro_mapper=macro_mapper)

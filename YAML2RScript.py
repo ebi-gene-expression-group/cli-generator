@@ -42,7 +42,12 @@ message = f"""
 # to change this file edit the input YAML and re-run the above command
 """
 
-write_R_file(args.output, message, dep_w.write(), opt_w.write_declarations(), preproc_w.write_preprocess(), commands)
+write_R_file(args.output,
+             message,
+             dep_w.write(),
+             opt_w.write_declarations(),
+             preproc_w.write_preprocess(),
+             commands)
 
 # make script executable for the user
 import os
