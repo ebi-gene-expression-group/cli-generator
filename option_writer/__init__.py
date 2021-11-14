@@ -407,6 +407,9 @@ class GalaxyOption(Option):
         super(GalaxyOption, GalaxyOption).create_option(option_dict=option_dict)
 
         if option_dict['type'] in ['string', 'integer', 'float']:
+            if 'options' in option_dict:
+                return GalaxySelectOption(dict_with_slots=option_dict)
+            else:
             return GalaxyInputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'boolean':
             return BooleanGalaxyOption(dict_with_slots=option_dict)
@@ -416,11 +419,6 @@ class GalaxyOption(Option):
             return GalaxyOutputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'internal':
             return None
-        #if option_dict['type'] == 'list':
-        #    return StringListOption(dict_with_slots=option_dict)
-        # if option_dict['type'] == 'internal':
-        #     return InternalVarROption(dict_with_slots=option_dict)
-
 
 class GalaxyInputOption(GalaxyOption):
     """
@@ -476,6 +474,100 @@ class GalaxyInputOption(GalaxyOption):
         if self.elements['default'] is None:
             return ""
         return "'{}'".format(self.elements['default'])
+
+
+class GalaxySelectOption(GalaxyInputOption):
+
+    def get_options_hash(self):
+        """
+        Transforms:
+
+        default: thirdOption
+        options:
+          - firstOption
+          - secondOption: Second option
+          - thirdOption
+
+        into
+         options_hash = { 'firstOption': 'firstOption',
+                          'secondOption': "Second Option",
+                          'thirdOption': 'thirdOption'
+                          }
+        :return:
+        """
+        result = {}
+        for option in self.elements['options']:
+            if type(option) is dict:
+                for opt_key in option:
+                    result[opt_key] = option[opt_key]
+            else:
+                result[option] = option
+
+        return result
+
+    def get_options_selected_hash(self):
+        """
+        Transforms:
+
+        default: thirdOption
+        options:
+          - firstOption
+          - secondOption: Second option
+          - thirdOption
+
+        into
+          selection_text = { 'firstOption': "",
+                             'secondOption': "",
+                             'thirdOption': ' selected="true"'
+                            }
+        :return:
+        """
+        result = {}
+        for option in self.elements['options']:
+            if type(option) is dict:
+                for opt_key in option:
+                    if self.elements['default'] == opt_key:
+                        result[opt_key] = ' selected="true"'
+                    else:
+                        result[opt_key] = ''
+            else:
+                if self.elements['default'] == option:
+                    result[option] = ' selected="true"'
+                else:
+                    result[option] = ''
+
+        return result
+
+    """
+    Galaxy option with select
+    """
+    def option_maker(self):
+        """
+        Produces a text for creation a select galaxy option
+        <param name="norm" argument="--normalization-method" type="select" optional="True" label="Normalisation method" help = "Method for normalization. Default is log-normalization (LogNormalize). Can be 'CLR' or 'RC' additionally.">
+          <option value="LogNormalize" selected="true">Log Normalise</option>
+          <option value="CLR">CLR</option>
+          <option value="RC">RC</option>
+        </param>
+        :return:
+        """
+        maker_t = Template("""<{{ tag }} label="{{ label }}" name="{{ name }}" argument="--{{ argument }}" type="select" {{ format }} help="{{ help }}">
+                            {%- for option in options %}
+                            <option value="{{ options[option] }}"{{ selected[option] }}>{{ option }}</option>
+                            {%- endfor %}
+                    </{{ tag }}>""")
+
+        output = maker_t.render(
+            tag = self._tag(),
+            label = self._human_readable(),
+            selected = self.get_options_selected_hash(),
+            options = self.get_options_hash(),
+            name = self.long_value(prefix_advanced=True),
+            argument=self._long(),
+            help = self._help()
+        )
+
+        return dedent(output)
 
 
 class BooleanGalaxyOption(BooleanOption, GalaxyInputOption):
