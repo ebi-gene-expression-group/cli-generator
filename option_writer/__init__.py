@@ -410,7 +410,7 @@ class GalaxyOption(Option):
             if 'options' in option_dict:
                 return GalaxySelectOption(dict_with_slots=option_dict)
             else:
-            return GalaxyInputOption(dict_with_slots=option_dict)
+                return GalaxyInputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'boolean':
             return BooleanGalaxyOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'file_in':
@@ -438,7 +438,7 @@ class GalaxyInputOption(GalaxyOption):
                                 tag=self._tag(),
                                 label=self._human_readable(),
                                 optional_default=self._galaxy_default_declaration(),
-                                name=self.long_value(),
+                                name=self.long_value(prefix_advanced=True),
                                 argument=self._long(),
                                 type=self._type(),
                                 format=self._galaxy_format_declaration(),
