@@ -18,6 +18,8 @@ with open(file=args.input_yaml) as f:
 
 all_opts = list()
 for command in script_data['commands']:
+    if 'rcode' in command:
+        continue
     all_opts.extend(command['options'])
 
 dep_w = RDependencies(script_data['commands'])

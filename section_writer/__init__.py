@@ -247,10 +247,9 @@ class RCommandWriter(RSectionWriter):
                                        ))
 
 
-class RCodeWriter(RCommandWriter):
+class RCodeWriter:
 
-    def __init__(self, code, **kwargs):
-        super(RCodeWriter, self).__init__(**kwargs)
+    def __init__(self, code):
         self.code = code
 
     def write_command_call(self):
