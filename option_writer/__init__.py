@@ -228,6 +228,8 @@ class InternalVarROption(ROption):
         return None
 
     def _option_variable(self):
+        if 'value' in self.elements:
+            return self.elements['value']
         return self.elements['var_name']
 
 
