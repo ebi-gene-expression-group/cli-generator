@@ -325,8 +325,15 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
 
         inputs_t = Template("""
                 <inputs>
-                {%- for input_macro in i_dec_macros %}
-                    <expand macro="{{ input_macro }}"/>
+                {% for input_macro in i_dec_macros -%}
+                    {%- if input_macro is mapping -%}
+                    <expand macro="{{ input_macro.keys() | first }}" 
+                    {%- for i_macro in input_macro -%}
+                    {%- for token in input_macro[i_macro] %} token_{{ token }}="{{ input_macro[i_macro][token] }}" {%- endfor -%}
+                    {%- endfor -%} /> 
+                    {%- else -%}
+                    <expand macro="{{ input_macro }}" />
+                    {% endif %}
                 {%- endfor %}
                 {%- for option in i_options %}
                     {{ option.option_maker() }}
