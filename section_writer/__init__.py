@@ -1,4 +1,5 @@
-from textwrap import dedent
+import os.path
+from textwrap import dedent, indent
 from jinja2 import Template
 from option_writer import *
 
@@ -156,36 +157,34 @@ class ROptionsDeclarationWriter(RSectionWriter):
         make_calls = list()
         mandatory = list()
         for option in self.options:
-            write = True
+            if not option.is_declarable:
+                continue
             for other_option in self.options:
                 if option == other_option:
                     continue
                 if str(option._long()) == str(other_option._long()):
-                    write = False
-            if not write:
-                print("WARNING SAME - LONG USED MULTIPLE TIME CHECK THE .yaml : " + str(option._long()))
-                self.options.pop(self.options.index(option))
-                continue
-            if option.is_declarable:
-                make_calls.append(option.option_maker())
-                if not option.has_default:
-                    mandatory.append(option.long_value())
+                    print(f"WARNING: {option._long()} long used multiple times, "
+                          f"declaring only once. Check the .yaml if unintended")
+                    other_option.is_declarable = False
+            make_calls.append(option.option_maker())
+            if not option.has_default:
+                mandatory.append(option.long_value())
 
         make_calls_t = Template("""
 option_list <- list(
-{%- for call in calls -%}
-    {%- if not loop.last %}
+{% for call in calls %}
+    {% if not loop.last %}
     {{ call }},
-    {%- else %}
+    {% else %}
     {{ call }}
-    {%- endif -%}
-{%- endfor %})
+    {% endif %}
+{% endfor %})
 
 opt <- wsc_parse_args(option_list, 
                       mandatory = c({%- for m in mandatory -%}{%- if not loop.last -%}"{{ m }}", {% else -%}"{{ m }}"{%- endif -%}{%- endfor -%} ))
-                """)
-        return dedent(make_calls_t.render(calls=[call for call in make_calls if call],
-                                          mandatory=mandatory))
+                """, trim_blocks=True, lstrip_blocks=True)
+        return make_calls_t.render(calls=[call for call in make_calls if call],
+                                          mandatory=mandatory)
 
 
 class RPreprocessWriter(RSectionWriter):
@@ -193,6 +192,7 @@ class RPreprocessWriter(RSectionWriter):
     def write_preprocess(self):
         # pre_process_calls = [option.pre_process() for option in self.options if option.has_preprocess]
         pre_process_calls = []
+        pre_process_calls_t = None
         for option in self.options:
             if option.has_preprocess:
                 pre_process_calls.append(option.pre_process())
@@ -201,7 +201,10 @@ class RPreprocessWriter(RSectionWriter):
 {{ call }}
 {% endfor -%}
                 """)
-        return dedent(pre_process_calls_t.render(calls=pre_process_calls))
+        if pre_process_calls_t:
+            return dedent(pre_process_calls_t.render(calls=pre_process_calls))
+        else:
+            return ""
 
 
 class RCommandWriter(RSectionWriter):
@@ -216,12 +219,12 @@ class RCommandWriter(RSectionWriter):
     def create_writer(command):
         if 'output' in command:
             return RSingleResultCommandWriter(command=command['call'],
-                                                  options_dict_list=command['options'],
-                                                  output=command['output'][0]['var_name'])
+                                              options_dict_list=command['options'],
+                                              output=command['output'][0]['var_name'])
         if 'rcode' in command:
             return RCodeWriter(code=command['rcode'])
         return RCommandWriter(command=command['call'],
-                             options_dict_list=command['options'])
+                              options_dict_list=command['options'])
 
     # def _create_options_list(self, options_dict_list):
     #    for option in options_dict_list:
@@ -355,51 +358,55 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
 
     def write_declarations(self):
 
-        inputs_t = Template("""
+        inputs_t = Template(dedent(
+                """
                 <inputs>
-                {% for input_macro in i_dec_macros -%}
-                    {%- if input_macro is mapping -%}
+                {% for input_macro in i_dec_macros %}
+                    {% if input_macro is mapping %}
                     <expand macro="{{ input_macro.keys() | first }}" 
-                    {%- for i_macro in input_macro -%}
-                    {%- for token in input_macro[i_macro] %} token_{{ token }}="{{ input_macro[i_macro][token] }}" {%- endfor -%}
-                    {%- endfor -%} /> 
-                    {%- else -%}
+                    {%- for i_macro in input_macro %}
+                    {% for token in input_macro[i_macro] %} {{ token }}="{{ input_macro[i_macro][token] }}" {% endfor %} {% endfor -%} /> 
+                    {% else %}
                     <expand macro="{{ input_macro }}" />
                     {% endif %}
-                {%- endfor %}
-                {%- for option in i_options %}
+                {% endfor %}
+                {% for option in i_options %}
                     {{ option.option_maker() }}
-                {%- endfor %} 
-                {%- if i_adv_options %}
+                {% endfor %} 
+                {% if i_adv_options %}
                     <section name="adv" title="Advanced options">
-                    {%- for adv_option in i_adv_options %}
+                    {% for adv_option in i_adv_options %}
                         {{ adv_option.option_maker() }}
-                    {%- endfor %}
+                    {% endfor %}
                     </section>
-                {%- endif %}
+                {% endif %}
                 </inputs>
-        """)
+                """), lstrip_blocks=True, trim_blocks=True)
 
-        outputs_t = Template("""
+        outputs_t = Template(dedent(
+                """
                 <outputs>
-                {%- for output_macro in o_dec_macros %}
+                {% for output_macro in o_dec_macros %}
                     <expand macro="{{ output_macro }}"/>
-                {%- endfor %}
-                {%- for option in o_options %}
+                {% endfor %}
+                {% for option in o_options %}
                     {{ option.option_maker() }}
-                {%- endfor %}
+                {% endfor %}
                 </outputs>
-        """)
+                """), lstrip_blocks=True, trim_blocks=True)
 
-        result = dedent(inputs_t.render(
+        result = inputs_t.render(
             i_options=[option for option in self.options if isinstance(option, GalaxyInputOption)],
             i_adv_options=[option for option in self.advanced_options if isinstance(option, GalaxyInputOption)],
             i_dec_macros=self.macro[self.INPUT_DECLARATION_MACROS])
-        )
 
-        result += dedent(outputs_t.render(
+        result += outputs_t.render(
             o_options=[option for option in self.options if isinstance(option, GalaxyOutputOption)],
             o_dec_macros=self.macro[self.OUTPUT_DECLARATION_MACROS])
+
+        return result
+
+
 class GalaxyHeaderWriter:
     """
     Writer for the <tool ..>, <description /> and initial macros
@@ -439,7 +446,7 @@ class GalaxyHeaderWriter:
         result = header_t.render(tool_id=self.tool_id, tool_name=self.tool_name,
                                  profile=self.profile, version=self.version, tool_description=self.tool_description,
                                  macros=self.macros, macro_expands=self.macro_expands
-        )
+                                 )
 
         return result
 
@@ -483,21 +490,21 @@ class GalaxyCommandWriter(GalaxySectionWriter):
             """\
             <command detect_errors="exit_code"><![CDATA[
             {% for pre_cmd_macro in pre_cmd_macros %}
-                    @{{ pre_cmd_macro }}@
-                {% endfor %}
-                {{ cli_command }}
+            @{{ pre_cmd_macro }}@
+            {% endfor %}
+            {{ cli_command }}
             {% for post_cmd_macro in post_cmd_macros %}
-                    @{{ post_cmd_macro }}@
-                {% endfor %}
+            @{{ post_cmd_macro }}@
+            {% endfor %}
             {% for option in options %}
-                    {{ option.option_caller() }}
+            {{ option.option_caller() }}
             {% endfor %}    
             ]]></command>
             """), lstrip_blocks=True, trim_blocks=True)
 
         command = command_t.render(options=self.options,
-                                          cli_command=self._command,
-                                          pre_cmd_macros=self.macro[self.PRE_COMMAND_MACROS],
+                                   cli_command=self._command,
+                                   pre_cmd_macros=self.macro[self.PRE_COMMAND_MACROS],
                                    post_cmd_macros=self.macro[self.POST_COMMAND_MACROS])
         return command
 
