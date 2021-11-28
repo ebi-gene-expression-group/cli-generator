@@ -1,6 +1,6 @@
 import yaml
 from section_writer import *
-from RWrapperOrganiser import *
+from textwrap import indent
 import argparse
 
 arg_parser = argparse.ArgumentParser()
@@ -31,8 +31,24 @@ for command in script_data['commands']:
 cli_command = None
 if 'cli_call' in script_data:
     cli_command = script_data['cli_call']
-opt_c = GalaxyCommandWriter(all_opts, command=cli_command, macro_mapper=macro_mapper)
-print(opt_c.write_command())
 
+tool_info = None
+macro_expands_footer = []
+if 'galaxy_tool' in script_data:
+    tool_info = script_data['galaxy_tool']
+    macro_expands_footer = tool_info['macro_expands_footer']
+
+header_prod = GalaxyHeaderWriter(**tool_info)
+footer_prod = GalaxyFooterWriter(macro_expands_footer)
+opt_c = GalaxyCommandWriter(all_opts, command=cli_command, macro_mapper=macro_mapper)
 opt_w = GalaxyOptionsDeclarationWriter(all_opts, macro_mapper=macro_mapper)
-print(opt_w.write_declarations())
+test_w = GalaxyTestWriter(manual_from_file=args.output)
+help_w = GalaxyHelpWriter(manual_from_file=args.output)
+
+with open(file=args.output, mode="w") as f:
+    f.write(header_prod.write())
+    f.write(indent(opt_c.write_command(), prefix="    "))
+    f.write(indent(opt_w.write_declarations(), prefix="    "))
+    f.write(indent(test_w.write(), prefix="    "))
+    f.write(help_w.write())
+    f.write(footer_prod.write())
