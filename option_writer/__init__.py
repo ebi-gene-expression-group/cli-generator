@@ -162,15 +162,15 @@ class ROption(Option):
         return "{} = {}".format(self.library_arg(), self._option_variable())
 
     def _option_variable(self):
-        return "opt${}".format(self.long_value())
+        return f"opt${self.long_value()}"
 
     def _short_and_long(self):
         if 'short' in self.elements and 'long' in self.elements:
-            return "-{}\", \"--{}".format(self.elements['short'], self._long())
+            return "-{}\", \"--{}".format(self.elements['short'], self._long().replace(".", "-"))
         elif 'short' in self.elements:
             return "-{}".format(self.elements['short'])
         elif 'long' in self.elements:
-            return "--{}".format(self._long())
+            return "--{}".format(self._long().replace(".", "-"))
         else:
             raise Exception("Option needs to have at least short or long defined")
 
@@ -196,7 +196,7 @@ class ROption(Option):
         return self.elements['long'].replace("-", self.r_sep)
 
     def long_value(self):
-        return self.elements['long'].replace("-", "_")
+        return self.elements['long'].replace("-", "_").replace(".", "_")
 
     def _action(self):
         return 'store'
@@ -380,6 +380,9 @@ class GalaxyOption(Option):
                 lv = f"adv.{lv}"
         return lv
 
+    def long_call(self):
+        return self._long().replace(".", "-")
+
     def option_caller(self):
         caller_t = Template("""
             {% if optional -%}
@@ -441,7 +444,7 @@ class GalaxyInputOption(GalaxyOption):
                                 label=self._human_readable(),
                                 optional_default=self._galaxy_default_declaration(),
                                 name=self.long_value(prefix_advanced=True),
-                                argument=self._long(),
+                                argument=self.long_call(),
                                 type=self._type(),
                                 format=self._galaxy_format_declaration(),
                                 help=self._help(),
@@ -588,9 +591,9 @@ class BooleanGalaxyOption(BooleanOption, GalaxyInputOption):
         if self.elements['default']:
             truevalue = ""
             checked = "true"
-            falsevalue = "--{}".format(self._long())
+            falsevalue = "--{}".format(self.long_call())
         else:
-            truevalue = "--{}".format(self._long())
+            truevalue = "--{}".format(self.long_call())
             checked = "false"
             falsevalue = ""
 
