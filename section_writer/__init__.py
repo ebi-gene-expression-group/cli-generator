@@ -286,8 +286,40 @@ class RSingleResultCommandWriter(RCommandWriter):
 class GalaxySectionWriter:
 
     def __init__(self, options_dict_list):
+        self.existing = None
         self.options = [GalaxyOption.create_option(option) for option in options_dict_list
                         if GalaxyOption.create_option(option) is not None]
+
+    def _recover_manual_entry(self, manual_from_file, section=None):
+        """
+        Recovers into self.existing a section within a given Galaxy XML file
+        that is surrounded by
+        
+        <!-- MANUAL {section} -->
+            some content
+        <!-- END MANUAL {section} -->
+        
+        Initially introduced for facilitating writing helps and tests on the written XML.
+        
+        This assumes that there is a single block within the document that responds to that pattern
+        :param manual_from_file: usually the same XML file that we are writing.
+        :param section: either HELP or TESTS currently
+        """
+        if not os.path.isfile(manual_from_file):
+            return
+        comment_start = "<!-- "
+        self.existing = ""
+        print(f"Reading manual {section} from {manual_from_file}")
+        with open(file=manual_from_file) as f:
+            save_lines = False
+            for line in f:
+                if f"{comment_start}MANUAL {section}" in line:
+                    save_lines = True
+                if save_lines:
+                    self.existing = self.existing + line
+                if f"{comment_start}END MANUAL {section}" in line:
+                    save_lines = False
+        self.existing = indent(dedent(self.existing.rstrip('\n')), prefix="  ")
 
     def _define_macros(self, macro_mapper=None):
         self.macro = {}
@@ -447,25 +479,68 @@ class GalaxyCommandWriter(GalaxySectionWriter):
 
     def write_command(self):
 
-        command_t = Template(
-            """
+        command_t = Template(dedent(
+            """\
             <command detect_errors="exit_code"><![CDATA[
-                {% for pre_cmd_macro in pre_cmd_macros -%}
+            {% for pre_cmd_macro in pre_cmd_macros %}
                     @{{ pre_cmd_macro }}@
                 {% endfor %}
                 {{ cli_command }}
-                {% for post_cmd_macro in post_cmd_macros -%}
+            {% for post_cmd_macro in post_cmd_macros %}
                     @{{ post_cmd_macro }}@
                 {% endfor %}
-                {%- for option in options -%}
+            {% for option in options %}
                     {{ option.option_caller() }}
-                {%- endfor %}    
+            {% endfor %}    
             ]]></command>
-            """)
+            """), lstrip_blocks=True, trim_blocks=True)
 
-        command = dedent(command_t.render(options=self.options,
+        command = command_t.render(options=self.options,
                                           cli_command=self._command,
                                           pre_cmd_macros=self.macro[self.PRE_COMMAND_MACROS],
-                                          post_cmd_macros=self.macro[self.POST_COMMAND_MACROS]
-                                          ))
+                                   post_cmd_macros=self.macro[self.POST_COMMAND_MACROS])
         return command
+
+
+class GalaxyTestWriter(GalaxySectionWriter):
+
+    def __init__(self, manual_from_file=None):
+        super(GalaxyTestWriter, self).__init__([])
+        if manual_from_file:
+            self._recover_manual_entry(manual_from_file, section="TESTS")
+
+    def write(self):
+        test_t = Template(dedent(
+            """
+            <tests>
+            {% if manual %}
+            {{ manual }}\
+            {% endif %} 
+            </tests>\
+            """), lstrip_blocks=True, trim_blocks=True)
+
+        return test_t.render(manual=self.existing)
+
+
+class GalaxyHelpWriter(GalaxySectionWriter):
+
+    def __init__(self, manual_from_file=None):
+        super(GalaxyHelpWriter, self).__init__([])
+        if manual_from_file:
+            self._recover_manual_entry(manual_from_file, section='HELP')
+
+    def write(self):
+        help_t = Template(dedent(
+            """
+            <help>
+            {% if manual %}
+            {{ manual }}\
+            {% endif %} 
+            </help>\
+            """), lstrip_blocks=True, trim_blocks=True)
+
+        return help_t.render(manual=dedent(self.existing))
+
+
+
+
