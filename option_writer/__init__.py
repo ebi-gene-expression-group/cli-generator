@@ -131,18 +131,20 @@ class ROption(Option):
             )
         :return: text as specified
         """
-        maker_t = Template("""make_option(
+        maker_t = Template(dedent("""\
+            make_option(
                     c("{{ flags }}"),
                     action = "{{ action }}",
-                    {% if 'default' in elements -%}
+                    {% if 'default' in elements %}
                     default = {{ default }},
-                    {% endif -%}
-                    {% if 'human_readable' in elements -%}
+                    {% endif %}
+                    {% if 'human_readable' in elements %}
                     metavar = "{{ human_readable }}",
-                    {% endif -%}
+                    {% endif %}
                     type = "{{ type }}",
-                    help = "{{ help }}")
-                    """)
+                    help = "{{ help }}"
+                )
+            """), trim_blocks=True, lstrip_blocks=True)
 
         output = maker_t.render(flags=self._short_and_long(),
                                 action=self._action(),
@@ -152,7 +154,7 @@ class ROption(Option):
                                 help=self._help(),
                                 elements=self.elements,
                                 )
-        return dedent(output)
+        return output
 
     def option_caller(self):
         """
@@ -384,17 +386,18 @@ class GalaxyOption(Option):
         return self._long().replace(".", "-")
 
     def option_caller(self):
-        caller_t = Template("""
-            {% if optional -%}
+        caller_t = Template(dedent(
+            """
+            {% if optional %}
             #if ${{ long_value }}
-            {% endif -%}
-                --{{ long }} '${{ long_value }}'
-            {% if optional -%}
+            {% endif %}
+            --{{ long }} '${{ long_value }}'
+            {% if optional %}
             #end if
-            {% endif -%}
-        """)
+            {% endif %}
+            """), lstrip_blocks=True, trim_blocks=True)
 
-        return dedent(caller_t.render(long=self._long(), long_value=self.long_value(True), optional=self.is_optional()))
+        return caller_t.render(long=self.long_call(), long_value=self.long_value(True), optional=self.is_optional())
 
     def _help(self):
         """
@@ -424,6 +427,7 @@ class GalaxyOption(Option):
             return GalaxyOutputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'internal':
             return None
+
 
 class GalaxyInputOption(GalaxyOption):
     """
@@ -556,23 +560,26 @@ class GalaxySelectOption(GalaxyInputOption):
         </param>
         :return:
         """
-        maker_t = Template("""<{{ tag }} label="{{ label }}" name="{{ name }}" argument="--{{ argument }}" type="select" {{ format }} help="{{ help }}">
-                            {%- for option in options %}
-                            <option value="{{ options[option] }}"{{ selected[option] }}>{{ option }}</option>
-                            {%- endfor %}
-                    </{{ tag }}>""")
+        maker_t = Template(dedent(
+            """\
+            <{{ tag }} label="{{ label }}" name="{{ name }}" argument="--{{ argument }}" type="select" {{ format }} help="{{ help }}">
+            {% for option in options %}
+                    <option value="{{ option }}"{{ selected[option] }}>{{ options[option] }}</option>
+            {% endfor %}
+                </{{ tag }}>
+            """), lstrip_blocks=True, trim_blocks=True)
 
         output = maker_t.render(
-            tag = self._tag(),
-            label = self._human_readable(),
-            selected = self.get_options_selected_hash(),
-            options = self.get_options_hash(),
-            name = self.long_value(prefix_advanced=True),
-            argument=self._long(),
-            help = self._help()
+            tag=self._tag(),
+            label=self._human_readable(),
+            selected=self.get_options_selected_hash(),
+            options=self.get_options_hash(),
+            name=self.long_value(prefix_advanced=True),
+            argument=self.long_call(),
+            help=self._help()
         )
 
-        return dedent(output)
+        return output
 
 
 class BooleanGalaxyOption(BooleanOption, GalaxyInputOption):
