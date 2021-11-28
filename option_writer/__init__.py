@@ -75,7 +75,7 @@ class Option:
 
 class BooleanOption(Option):
     """
-    Base class for Boolean Options accross frameworks
+    Base class for Boolean Options across frameworks
     """
     def _long(self):
         if self.elements['default']:
@@ -285,7 +285,7 @@ class BooleanROption(BooleanOption, ROption):
     """
     def option_caller(self):
         if self.elements['default']:
-            return "{} = !opt${}".format(self.library_arg(), self._long().replace("-", "_"))
+            return "{} = opt${}".format(self.library_arg(), self._long().replace("-", "_").replace(".","_"))
         else:
             return super(BooleanROption, self).option_caller()
 
