@@ -368,9 +368,69 @@ class GalaxyOptionsDeclarationWriter(GalaxySectionWriter):
         result += dedent(outputs_t.render(
             o_options=[option for option in self.options if isinstance(option, GalaxyOutputOption)],
             o_dec_macros=self.macro[self.OUTPUT_DECLARATION_MACROS])
+class GalaxyHeaderWriter:
+    """
+    Writer for the <tool ..>, <description /> and initial macros
+    """
+
+    def __init__(self, id, name, profile="18.01",
+                 version="1.0", description="",
+                 macros=[], macro_expands_header=[],
+                 macro_expands_footer=[]
+                 ):
+        self.tool_id = id
+        self.tool_name = name
+        self.tool_description = description
+        self.profile = profile
+        self.version = version
+        self.macros = macros
+        self.macro_expands = macro_expands_header
+
+    def write(self):
+        header_t = Template(dedent(
+            """\
+            <tool id="{{ tool_id }}" name="{{ tool_name }}" profile="{{ profile }}" version="{{ version }}+galaxy0">
+                <description>{{ tool_description }}</description>
+                {% if macros %}
+                {% for macro in macros %}
+                <macros>
+                    <import>{{ macro }}</import>
+                </macros>
+                {% endfor %}
+                {% for expand in macro_expands %}
+                <expand macro="{{expand}}" />
+                {% endfor %}
+                {% endif %}
+            """
+        ), lstrip_blocks=True, trim_blocks=True)
+
+        result = header_t.render(tool_id=self.tool_id, tool_name=self.tool_name,
+                                 profile=self.profile, version=self.version, tool_description=self.tool_description,
+                                 macros=self.macros, macro_expands=self.macro_expands
         )
 
         return result
+
+
+class GalaxyFooterWriter:
+    """
+    Writer for the </tool> and closing macros
+    """
+
+    def __init__(self, macro_expands_footer=[]):
+        self.macro_expands = macro_expands_footer
+
+    def write(self):
+        footer_ = Template(dedent(
+            """
+                {% for expand in macro_expands %}
+                <expand macro="{{expand}}" />
+                {% endfor %}
+            </tool>
+            """
+        ), lstrip_blocks=True, trim_blocks=True)
+
+        return footer_.render(macro_expands=self.macro_expands)
 
 
 class GalaxyCommandWriter(GalaxySectionWriter):
