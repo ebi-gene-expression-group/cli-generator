@@ -537,6 +537,9 @@ class GalaxyHelpWriter(GalaxySectionWriter):
             self._recover_manual_entry(manual_from_file, section='HELP')
 
     def write(self):
+        content = ""
+        if self.existing:
+            content = self.existing
         help_t = Template(dedent(
             """
             <help>
@@ -546,7 +549,7 @@ class GalaxyHelpWriter(GalaxySectionWriter):
             </help>\
             """), lstrip_blocks=True, trim_blocks=True)
 
-        return help_t.render(manual=dedent(self.existing))
+        return help_t.render(manual=dedent(content))
 
 
 
