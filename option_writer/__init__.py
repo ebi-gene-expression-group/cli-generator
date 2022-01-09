@@ -1,12 +1,13 @@
 from textwrap import dedent
 from jinja2 import Template
+import copy
 import logging
 
 
 class Option:
 
     def __init__(self, dict_with_slots):
-        self.elements = dict_with_slots
+        self.elements = copy.deepcopy(dict_with_slots)
         self.has_preprocess = False
         self.is_declarable = True
         self.has_default = 'default' in self.elements
@@ -100,6 +101,8 @@ class ROption(Option):
             return EvaluatedROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'string':
             return CharacterROption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'string_or_file':
+            return RDSFileOrStringInputROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'boolean':
             return BooleanROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'file_in':
@@ -279,6 +282,37 @@ class FileInputROption(FileROption):
         return dedent(output)
 
 
+class RDSFileOrStringInputROption(CharacterROption):
+    """
+    Case for options that need to be treated as a file or as a string, depending on what is provided.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.has_preprocess = True
+
+    def pre_process(self):
+        """
+        Check if the given option is a file or a string, and read accordingly leaving on the same variable for use
+        :return:
+        """
+
+        file_or_string_t = Template("""
+        if (!is.na(as.numeric({{ variable }}))) {
+            # this case also covers variables that can accept a numeric entry, but if the number is passed as a string
+            # the R method can often fail with unspecific errors.
+            {{ variable }} <- as.numeric({{ variable }})
+        } else if (file.exists({{ variable }})) {
+            # if the file exists, then we load it, otherwise the variable keeps its content.
+            tmp <- readRDS({{ variable }})
+            {{ variable }} <- tmp
+        }
+        """)
+        output = file_or_string_t.render(variable=self._option_variable())
+
+        return dedent(output)
+
+
 class BooleanROption(BooleanOption, ROption):
     """
     A boolean option for OptParse in R
@@ -419,6 +453,8 @@ class GalaxyOption(Option):
                 return GalaxySelectOption(dict_with_slots=option_dict)
             else:
                 return GalaxyInputOption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'string_or_file':
+            return FileOrStringGalaxyInputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'boolean':
             return BooleanGalaxyOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'file_in':
@@ -625,6 +661,58 @@ class FileInputGalaxyOption(GalaxyInputOption):
 
     def _galaxy_format_declaration(self):
         return "format='{}'".format(self.elements['format'] if 'format' in self.elements else "?")
+
+
+class FileOrStringGalaxyInputOption(GalaxyInputOption):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._file_option = FileInputGalaxyOption(dict_with_slots=self.elements)
+        self._string_option = GalaxyInputOption(dict_with_slots=self.elements)
+        self._file_option.elements['long'] = self._file_option.elements['long'] + "_file"
+        self._file_option.elements['help'] = f"File option for {self._string_option.elements['long']}. " \
+                                             f"This overrides the string option if set."
+
+
+    def option_maker(self):
+        """
+        Adds an option for the file (which overrides the string) and one for the string, used instead if the file is
+        not defined.
+        :return:
+        """
+
+        maker_t = Template(dedent(
+            """{{ file_option }}
+                {{ string_option }}
+            """), lstrip_blocks=True, trim_blocks=True)
+
+        return maker_t.render(file_option=self._file_option.option_maker(),
+                                string_option=self._string_option.option_maker()
+                                )
+
+    def option_caller(self):
+        """
+        Produces the call of the joint options so that if the file is set, it has priority over the string.
+        :return:
+        """
+        caller_t = Template(dedent(
+            """
+            #if ${{ long_value_file }}
+            --{{ long_string }} '${{ long_value_file }}'
+            {% if optional %}
+            #elif ${{ long_value_string }}
+            {% else %}
+            #else
+            {% endif %}
+            --{{ long_string }} '${{ long_value_string }}'
+            #end if
+            """), lstrip_blocks=True, trim_blocks=True)
+
+        return caller_t.render(long_string=self._string_option.long_call(),
+                               long_value_string=self._string_option.long_value(True),
+                               long_value_file=self._file_option.long_value(True),
+                               optional=self.is_optional())
+
 
 
 class GalaxyOutputOption(GalaxyOption):
