@@ -1,6 +1,7 @@
 import yaml
 from section_writer import *
 from RWrapperOrganiser import *
+from carousel import RCarousel
 import argparse
 
 arg_parser = argparse.ArgumentParser()
@@ -17,19 +18,32 @@ with open(file=args.input_yaml) as f:
     script_data = yaml.load(f)
 
 all_opts = list()
+carousels = []
+
+all_commands = []
+
 for command in script_data['commands']:
     if 'rcode' in command:
+        all_commands.append(command)
+        continue
+    if 'call_carousel' in command:
+        carousel = RCarousel(command)
+        all_opts.extend(carousel.get_options())
+        carousels.append(carousel)
+        all_commands.extend(carousel.get_commands())
         continue
     all_opts.extend(command['options'])
+    all_commands.append(command)
 
-dep_w = RDependencies(script_data['commands'])
+
+dep_w = RDependencies(all_commands)
 
 opt_w = ROptionsDeclarationWriter(all_opts)
 
 preproc_w = RPreprocessWriter(all_opts)
 
 commands = ""
-for command in script_data['commands']:
+for command in all_commands:
     cmd_w = RCommandWriter.create_writer(command)
     commands += cmd_w.write_command_call()
 

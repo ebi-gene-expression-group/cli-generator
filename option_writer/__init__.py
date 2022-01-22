@@ -24,7 +24,7 @@ class Option:
         for field in ['long', 'type']:
             if field not in option_dict:
                 print(option_dict)
-                raise Exception("Option is invalid, {} field is required.".format(field))
+                raise Exception(f"Option is invalid, field '{field}' is required. Option: '{option_dict['long']}'")
 
     def option_caller(self):
         """
@@ -111,6 +111,8 @@ class ROption(Option):
             return FileROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'list':
             return StringListOption(dict_with_slots=option_dict)
+        if option_dict['type'] == 'list_numeric':
+            return NumericListOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'internal':
             return InternalVarROption(dict_with_slots=option_dict)
         if option_dict['type'] == 'integer':
@@ -383,7 +385,7 @@ class StringListOption(CharacterROption):
         """
         return "{} = {}".format(self.library_arg(), self.long_value())
 
-    def pre_process(self, tok_fun_name="unlist(strsplit({}, sep = \",\"))"):
+    def pre_process(self, tok_fun_name="unlist(strsplit({}, split = \",\"))"):
         """
         Produce code to tokenize list into parts
         :param tok_fun_name: the call to be used to untokenize.
@@ -403,6 +405,12 @@ class StringListOption(CharacterROption):
                                    )
 
         return dedent(output)
+
+
+class NumericListOption(StringListOption):
+
+    def pre_process(self, tok_fun_name="as.numeric(unlist(strsplit({}, split = \",\")))"):
+        return super(NumericListOption, self).pre_process(tok_fun_name=tok_fun_name)
 
 
 class GalaxyOption(Option):
@@ -448,7 +456,7 @@ class GalaxyOption(Option):
     def create_option(option_dict, aliases_dict=None):
         super(GalaxyOption, GalaxyOption).create_option(option_dict=option_dict)
 
-        if option_dict['type'] in ['string', 'integer', 'float']:
+        if option_dict['type'] in ['string', 'integer', 'float', 'list', 'list_numeric']:
             if 'options' in option_dict:
                 return GalaxySelectOption(dict_with_slots=option_dict)
             else:
@@ -672,6 +680,7 @@ class FileOrStringGalaxyInputOption(GalaxyInputOption):
         self._file_option.elements['long'] = self._file_option.elements['long'] + "_file"
         self._file_option.elements['help'] = f"File option for {self._string_option.elements['long']}. " \
                                              f"This overrides the string option if set."
+        self._string_option.elements['type'] = 'string'
 
 
     def option_maker(self):
@@ -720,7 +729,9 @@ class GalaxyOutputOption(GalaxyOption):
     def option_maker(self):
         """
         Produces a text for creating the output in Galaxy
-            <data format="pdf" name="output_1" label="\$\{tool.name\} on \$\{on_string\}: out" argument="--features" type="text" help="Comma-separated list of genes to use for building SNN."/>
+            <data format="pdf" name="output_1"
+            label="\$\{tool.name\} on \$\{on_string\}: out" argument="--features"
+            type="text" help="Comma-separated list of genes to use for building SNN."/>
         :return: text as specified
         """
         maker_t = Template("""<{{ tag }} label="${tool.name} on ${on_string}: {{ label }}" """ +
