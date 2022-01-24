@@ -2,6 +2,7 @@ import yaml
 from section_writer import *
 from textwrap import indent
 import argparse
+import copy
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument('-i', '--input-yaml',
@@ -25,6 +26,15 @@ if args.macro_mapper:
 all_opts = list()
 for command in script_data['commands']:
     if 'rcode' in command:
+        continue
+    if 'call_carousel' in command:
+        command['type'] = 'input'
+        # for call_carousel we add the complete command instead of the options
+        all_opts.append(command)
+        c_output = copy.deepcopy(command)
+        c_output['type'] = 'output'
+        # and we add the output flavour of it (this will select output options among all calls in the carousel)
+        all_opts.append(c_output)
         continue
     all_opts.extend(command['options'])
 

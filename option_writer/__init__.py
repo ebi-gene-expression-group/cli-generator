@@ -24,7 +24,13 @@ class Option:
         for field in ['long', 'type']:
             if field not in option_dict:
                 print(option_dict)
-                raise Exception(f"Option is invalid, field '{field}' is required. Option: '{option_dict['long']}'")
+                msg = f"Option is invalid, field '{field}' is required."
+                if 'long' in option_dict:
+                    msg = f"{msg} Option: '{option_dict['long']}'"
+                else:
+                    msg = f"{msg} Long option is not defined, not sure how to describe this option."
+                    msg = f"{msg} {option_dict}"
+                raise Exception(msg)
 
     def option_caller(self):
         """
@@ -417,11 +423,13 @@ class GalaxyOption(Option):
     """
     Base Galaxy option class
     """
-    def long_value(self, prefix_advanced: bool = False):
+    def long_value(self, prefix_section: bool = False):
         lv = self.elements['long'].replace("-", "_").replace(".", "_")
-        if prefix_advanced:
+        if prefix_section:
             if 'advanced' in self.elements and self.elements['advanced']:
                 lv = f"adv.{lv}"
+            if hasattr(self, '_conditional'):
+                lv = f"{self._conditional}.{lv}"
         return lv
 
     def long_call(self):
@@ -440,6 +448,9 @@ class GalaxyOption(Option):
             """), lstrip_blocks=True, trim_blocks=True)
 
         return caller_t.render(long=self.long_call(), long_value=self.long_value(True), optional=self.is_optional())
+
+    def set_conditional(self, conditional):
+        self._conditional = conditional
 
     def _help(self):
         """
@@ -461,6 +472,10 @@ class GalaxyOption(Option):
                 return GalaxySelectOption(dict_with_slots=option_dict)
             else:
                 return GalaxyInputOption(dict_with_slots=option_dict)
+        if 'call_carousel' in option_dict and option_dict['type'] == 'input':
+            return GalaxyConditionalInputOption(dict_with_slots=option_dict)
+        if 'call_carousel' in option_dict and option_dict['type'] == 'output':
+            return GalaxyConditionalOutputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'string_or_file':
             return FileOrStringGalaxyInputOption(dict_with_slots=option_dict)
         if option_dict['type'] == 'boolean':
@@ -491,7 +506,7 @@ class GalaxyInputOption(GalaxyOption):
                                 tag=self._tag(),
                                 label=self._human_readable(),
                                 optional_default=self._galaxy_default_declaration(),
-                                name=self.long_value(prefix_advanced=True),
+                                name=self.long_value(),
                                 argument=self.long_call(),
                                 type=self._type(),
                                 format=self._galaxy_format_declaration(),
@@ -618,7 +633,7 @@ class GalaxySelectOption(GalaxyInputOption):
             label=self._human_readable(),
             selected=self.get_options_selected_hash(),
             options=self.get_options_hash(),
-            name=self.long_value(prefix_advanced=True),
+            name=self.long_value(),
             argument=self.long_call(),
             help=self._help()
         )
@@ -626,12 +641,182 @@ class GalaxySelectOption(GalaxyInputOption):
         return output
 
 
+class GalaxyConditionalOption(GalaxyOption):
+    """
+    Produces the initial separator for a conditional, where other options will be inserted in. For a Carousel opening:
+
+    - call_carousel: Plot
+      long: plot-type
+      default: FeaturePlot
+      help: Either FeaturePlot, RidgePlot, DimPlot, VlnPlot or DotPlot.
+      selector:
+      - call: DimPlot
+        dependencies:
+        - Seurat
+        - ggplot2
+        - patchwork
+        options:..
+      - call: VlnPlot
+        ...
+      - call: DotPlot
+        ...
+
+    should produce something along the lines:
+
+    <conditional name="plot_type">
+        <param name="plot_type_selector" type="select" label="Either FeaturePlot, RidgePlot, DimPlot, VlnPlot or DotPlot">
+            <option value="FeaturePlot" selected="true">FeaturePlot</option>
+            <option value="DimPlot">DimPlot</option>
+            <option value="VlnPlot">VlnPlot</option>
+        </param>
+        <when value="FeaturePlot">
+            <param ... /> # all feature plot params
+            ...
+        </when>
+        <when value="DimPlot">
+            <parma ... />
+            ...
+        </when>
+    </conditional>
+    """
+    def __init__(self, dict_with_slots):
+        super(GalaxyConditionalOption, self).__init__(dict_with_slots=dict_with_slots)
+
+        # options to create a selector for the different carousel options
+        carousel_options = self._carousel_options()
+        # create a selection option to render the conditional select
+        self._select_option = GalaxySelectOption(dict_with_slots=carousel_options)
+        self._select_option.set_conditional(self.long_value())
+        self._calls_output = {}
+        self._calls_options = {}
+
+        # create options options for each of the calls in the carousel, to be rendered
+        for call in self.elements['selector']:
+            # dive into the options for each call
+            self._calls_options[call['call']] = []
+            for option in call['options']:
+                option_obj = GalaxyOption.create_option(option_dict=option)
+                if option_obj is None:
+                    # there will be some elements that don't have a Galaxy option
+                    continue
+                option_obj.set_conditional(self.long_value())
+                self._calls_options[call['call']].append(option_obj)
+
+    def _carousel_options(self):
+        carousel_options = {'long': f"{self.long_value()}_selector",
+                            'help': self._help(),
+                            'default': self.elements['default']}
+        opts = {}
+        carousel_options['options'] = opts
+        carousel_options['type'] = 'string'
+        for call in self.elements['selector']:
+            if 'human_readable' in call:
+                opts[call['call']] = call['human_readable']
+            else:
+                opts[call['call']] = call['call']
+        return carousel_options
+
+
+class GalaxyConditionalInputOption(GalaxyConditionalOption, GalaxyInputOption):
+    """
+    Renders only input options within the conditional for the maker/declaration part
+    and all options in the caller part.
+    """
+    def option_maker(self):
+        conditional = f"""<conditional name="{self.long_value()}">"""
+        # TODO this method is partly replicating what the section writer is doing
+        # TODO so additional support would be needed for advanced options for instance.
+        # TODO maybe a reasonabe refactoring would be to have a central class with templates
+        # TODO that can be referred by both options and sections as needed.
+
+        # render each of the params for each of the options through sub options
+        declarations_t = Template(dedent(
+            """\
+            {{ conditional_open }}
+                {{ conditional_select }}
+            {% for call in calls %}
+                <when value="{{ call }}">
+                    {{ call_option_maker_output[call] }}    </when>
+            {% endfor %}
+            </conditional>
+            """), lstrip_blocks=True, trim_blocks=True)
+
+        call_option_maker_output_t = Template(dedent(
+            """\
+            {% for option in options %}
+            {% if loop.first %}
+            {{ option.option_maker() }}
+            {% else %}
+                    {{ option.option_maker() }}
+            {% endif %}
+            {% endfor %}
+            """
+        ), lstrip_blocks=True, trim_blocks=True)
+        call_option_maker_output = {}
+        for call in self._calls_options:
+            input_options = [option for option in self._calls_options[call] if isinstance(option, GalaxyInputOption)]
+            # rendered_options = [opt.option_maker() for opt in input_options]
+            call_option_maker_output[call] = call_option_maker_output_t.render(options=input_options)
+
+        return declarations_t.render(conditional_open=conditional,
+                                     conditional_select=self._select_option.option_maker(),
+                                     calls=self._calls_options.keys(),
+                                     call_option_maker_output=call_option_maker_output)
+
+    def option_caller(self):
+        """
+        Adds the call for selector:
+
+        --plot-type '$plot_type_selector'
+
+        #if plot_type.plot_type_selector == 'FeaturePlot'
+        #if plot_type.cols
+        --cols '$plot_type.cols'
+        #endif
+        ... (all options for FeaturePlot)
+        #endif
+
+        #if plot_type.plot_type_selector == 'VlnPlot'
+        #if plot_type.cols
+        --cols '$plot_type.cols'
+        #endif
+        ... (all options for VlnPlot)
+        #endif
+
+        plus all the calls for the sub calls within the conditional, setting the needed prefix based on the name
+        of the conditional.
+
+        :return:
+        """
+        caller_t = Template(dedent(
+            """\
+            --{{ selector_argument }} '${{ long_galaxy_var }}'
+
+            {% set if_prefix = '' %}
+            {% for call in call_options %}
+            #{{ if_prefix }}if str(${{ long_galaxy_var }}) == '{{ call }}':
+                {% for option in call_options[call] %}
+                {{ option.option_caller() }}
+                {% endfor %}
+            {% set if_prefix = 'el' %}
+            {% endfor %}
+            #endif
+            """
+        ), lstrip_blocks=True, trim_blocks=True)
+
+        # self._call_options is a dictionary from call names to arrays of options
+        # for every call
+        return caller_t.render(selector_argument=self.long_call(),
+                               long_galaxy_var=self._select_option.long_value(prefix_section=True),
+                               call_options=self._calls_options)
+
+
 class BooleanGalaxyOption(BooleanOption, GalaxyInputOption):
     """
     Galaxy boolean option writer, handles
     """
     def option_caller(self):
-        return "${}\n".format(self.long_value(prefix_advanced=True))
+        return "${}\n".format(self.long_value(prefix_section=True))
 
     def _boolean_declare(self):
         """
@@ -682,7 +867,6 @@ class FileOrStringGalaxyInputOption(GalaxyInputOption):
                                              f"This overrides the string option if set."
         self._string_option.elements['type'] = 'string'
 
-
     def option_maker(self):
         """
         Adds an option for the file (which overrides the string) and one for the string, used instead if the file is
@@ -696,8 +880,7 @@ class FileOrStringGalaxyInputOption(GalaxyInputOption):
             """), lstrip_blocks=True, trim_blocks=True)
 
         return maker_t.render(file_option=self._file_option.option_maker(),
-                                string_option=self._string_option.option_maker()
-                                )
+                              string_option=self._string_option.option_maker())
 
     def option_caller(self):
         """
@@ -723,10 +906,9 @@ class FileOrStringGalaxyInputOption(GalaxyInputOption):
                                optional=self.is_optional())
 
 
-
 class GalaxyOutputOption(GalaxyOption):
 
-    def option_maker(self):
+    def option_maker(self, filter_code=None):
         """
         Produces a text for creating the output in Galaxy
             <data format="pdf" name="output_1"
@@ -734,20 +916,76 @@ class GalaxyOutputOption(GalaxyOption):
             type="text" help="Comma-separated list of genes to use for building SNN."/>
         :return: text as specified
         """
-        maker_t = Template("""<{{ tag }} label="${tool.name} on ${on_string}: {{ label }}" """ +
-                           """name="{{ name }}" """ +
-                           """{{ format }} />""")
+        template_params = { 'tag': self._tag(),
+                            'label': self._human_readable(),
+                            'name': self.long_value(),
+                            'format': self._galaxy_format_declaration()
+                            }
 
-        output = maker_t.render(
-            tag=self._tag(),
-            label=self._human_readable(),
-            name=self.long_value(),
-            format=self._galaxy_format_declaration(),
-        )
-        return dedent(output)
+        if not filter_code:
+            maker_t = Template(dedent(
+                """<{{ tag }} label="${tool.name} on ${on_string}: {{ label }}" """ +
+                """name="{{ name }}" """ +
+                """{{ format }} />"""))
+        else:
+            maker_t = Template(dedent(
+                """\
+                <{{ tag }} label="${tool.name} on ${on_string}: {{ label }}" name="{{ name }}" {{ format }}>
+                    <filter>{{ filter_code }}</filter>
+                </{{ tag }}>     
+                """
+            ), lstrip_blocks=True, trim_blocks=True)
+            template_params['filter_code'] = filter_code
+
+        output = maker_t.render(**template_params)
+
+        return output
 
     def _galaxy_format_declaration(self):
         return "format='{}'".format(self.elements['format'] if 'format' in self.elements else "?")
 
     def _tag(self):
         return "data"
+
+
+class GalaxyConditionalOutputOption(GalaxyConditionalOption, GalaxyOutputOption):
+
+    def option_maker(self):
+        conditional = f"""<conditional name="{self.long_value()}">"""
+        # TODO this method is partly replicating what the section writer is doing
+        # TODO so additional support would be needed for advanced options for instance.
+        # TODO maybe a reasonabe refactoring would be to have a central class with templates
+        # TODO that can be referred by both options and sections as needed.
+
+        # render each of the params for each of the options through sub options
+        declarations_t = Template(dedent(
+            """\
+            {% for call in calls %}
+                {{ call_option_maker_output[call] }}
+            {% endfor %}
+            """), lstrip_blocks=True, trim_blocks=True)
+
+        call_option_maker_output_t = Template(dedent(
+            """\
+            {% for option in options %}
+            {{ option }}
+            {% endfor %}
+            """
+        ))
+        call_option_maker_output = {}
+        for call in self._calls_options:
+            output_options = [option for option in self._calls_options[call] if isinstance(option, GalaxyOutputOption)]
+            rendered_options = [opt.option_maker(filter_code=f"""{self.long_value()}""") for opt in output_options]
+            call_option_maker_output[call] = call_option_maker_output_t.render(options=rendered_options)
+
+        return declarations_t.render(conditional_open=conditional,
+                                     conditional_select=self._select_option.option_maker(),
+                                     calls=self._calls_output.keys(),
+                                     calls_option_maker_output=call_option_maker_output)
+
+    def option_caller(self):
+        """
+        Dealt with by the GalaxyConditionalInputOption
+        :return:
+        """
+        pass
