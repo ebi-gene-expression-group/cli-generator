@@ -161,7 +161,11 @@ def test_internal():
     assert opt.option_caller() == "object = seurat_object"
 
 
-response_galaxy_option_simple_string_call="""
+response_galaxy_option_simple_string_call = """
+--my-string-var '$my_string_var'
+"""
+
+response_galaxy_option_optional_string_call = """
 #if $my_string_var
     --my-string-var '$my_string_var'
 #end if
@@ -171,15 +175,15 @@ response_galaxy_option_simple_string_make="""<param label="My string var" option
 
 
 def test_galaxy_option():
-    opt = GalaxyOption.create_option(sample_option_simple_string)
+    opt = GalaxyInputOption.create_option(sample_option_simple_string)
     assert opt.option_maker() == response_galaxy_option_simple_string_make
     assert opt.option_caller() == response_galaxy_option_simple_string_call
 
 response_galaxy_option_boolean_true_make="""<param label="My logical var" optional='true' value='true' name="my_logical_var" argument="--do-not-my-logical-var" type="boolean"  truevalue='' falsevalue='--do-not-my-logical-var' checked='true' help="This is important for proces xyz"/>"""
-response_galaxy_option_boolean_true_call="${my_logical_var}"
+response_galaxy_option_boolean_true_call="'$my_logical_var'"
 
 
 def test_boolean_galaxy_option():
-    opt = GalaxyOption.create_option(sample_option_boolean_true)
+    opt = GalaxyInputOption.create_option(sample_option_boolean_true)
     assert opt.option_maker() == response_galaxy_option_boolean_true_make
     assert opt.option_caller() == response_galaxy_option_boolean_true_call
