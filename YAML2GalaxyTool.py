@@ -36,7 +36,8 @@ tool_info = None
 macro_expands_footer = []
 if 'galaxy_tool' in script_data:
     tool_info = script_data['galaxy_tool']
-    macro_expands_footer = tool_info['macro_expands_footer']
+    if 'macro_expands_footer' in tool_info:
+        macro_expands_footer = tool_info['macro_expands_footer']
 
 header_prod = GalaxyHeaderWriter(**tool_info)
 footer_prod = GalaxyFooterWriter(macro_expands_footer)
