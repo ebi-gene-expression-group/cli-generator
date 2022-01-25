@@ -471,6 +471,9 @@ class GalaxyOption(Option):
             if 'options' in option_dict:
                 return GalaxySelectOption(dict_with_slots=option_dict)
             else:
+                if option_dict['type'] in ['list', 'list_numeric']:
+                    # for galaxy lists that are decomposed later by the tool are just strings.
+                    option_dict['type'] = 'string'
                 return GalaxyInputOption(dict_with_slots=option_dict)
         if 'call_carousel' in option_dict and option_dict['type'] == 'input':
             return GalaxyConditionalInputOption(dict_with_slots=option_dict)
