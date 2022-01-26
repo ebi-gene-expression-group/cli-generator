@@ -292,6 +292,19 @@ class GalaxySectionWriter:
         self.existing = None
         self.options = [GalaxyOption.create_option(option) for option in options_dict_list
                         if GalaxyOption.create_option(option) is not None]
+        # Add options for turning on optional outputs
+        self.options.extend(self._get_output_filters())
+
+    def _get_output_filters(self):
+        output_filters = []
+        for option in self.options:
+            if isinstance(option, GalaxyOutputOption) and option.is_optional():
+                filter_var = f"enable_{option.long_value()}"
+                output_filters.append(BooleanGalaxyOption(
+                    {'long': filter_var, 'help': f"Enable output {option.long_value()}",
+                     'default': False}, mute_call=True))
+                option.filter_code = filter_var
+        return output_filters
 
     def _recover_manual_entry(self, manual_from_file, section=None):
         """

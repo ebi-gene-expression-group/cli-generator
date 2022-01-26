@@ -420,6 +420,11 @@ class NumericListOption(StringListOption):
 
 
 class GalaxyOption(Option):
+
+    def __init__(self, dict_with_slots, mute_call=False):
+        super(GalaxyOption, self).__init__(dict_with_slots=dict_with_slots)
+        self.mute_call = mute_call
+
     """
     Base Galaxy option class
     """
@@ -436,6 +441,9 @@ class GalaxyOption(Option):
         return self._long().replace(".", "-")
 
     def option_caller(self):
+        if self.mute_call:
+            return ""
+
         caller_t = Template(dedent(
             """
             {% if optional %}
@@ -795,15 +803,18 @@ class GalaxyConditionalInputOption(GalaxyConditionalOption, GalaxyInputOption):
             """\
             --{{ selector_argument }} '${{ long_galaxy_var }}'
 
-            {% set if_prefix = '' %}
+            
             {% for call in call_options %}
+            {% set if_prefix = 'el' %}
+            {% if loop.first %}
+                {% set if_prefix = '' %}
+            {% endif %}
             #{{ if_prefix }}if str(${{ long_galaxy_var }}) == '{{ call }}':
                 {% for option in call_options[call] %}
                 {{ option.option_caller() }}
                 {% endfor %}
-            {% set if_prefix = 'el' %}
             {% endfor %}
-            #endif
+            #end if
             """
         ), lstrip_blocks=True, trim_blocks=True)
 
@@ -819,6 +830,8 @@ class BooleanGalaxyOption(BooleanOption, GalaxyInputOption):
     Galaxy boolean option writer, handles
     """
     def option_caller(self):
+        if self.mute_call:
+            return ""
         return "${}\n".format(self.long_value(prefix_section=True))
 
     def _boolean_declare(self):
@@ -911,7 +924,29 @@ class FileOrStringGalaxyInputOption(GalaxyInputOption):
 
 class GalaxyOutputOption(GalaxyOption):
 
-    def option_maker(self, filter_code=None):
+    def __init__(self, **kwargs):
+        super(GalaxyOutputOption, self).__init__(**kwargs)
+        self.filter_code = None
+
+    def option_caller(self):
+        caller_t = Template(dedent(
+            """
+            {% if optional %}
+            #if ${{ long_value_if }}
+            {% endif %}
+            --{{ long }} '${{ long_value }}'
+            {% if optional %}
+            #end if
+            {% endif %}
+            """), lstrip_blocks=True, trim_blocks=True)
+
+        long_value_if = self.long_value(True)
+        if self.is_optional():
+            long_value_if = self.filter_code
+        return caller_t.render(long=self.long_call(), long_value_if=long_value_if,
+                               long_value=self.long_value(True), optional=self.is_optional())
+
+    def option_maker(self):
         """
         Produces a text for creating the output in Galaxy
             <data format="pdf" name="output_1"
@@ -925,7 +960,7 @@ class GalaxyOutputOption(GalaxyOption):
                             'format': self._galaxy_format_declaration()
                             }
 
-        if not filter_code:
+        if not self.filter_code:
             maker_t = Template(dedent(
                 """<{{ tag }} label="${tool.name} on ${on_string}: {{ label }}" """ +
                 """name="{{ name }}" """ +
@@ -938,7 +973,7 @@ class GalaxyOutputOption(GalaxyOption):
                 </{{ tag }}>     
                 """
             ), lstrip_blocks=True, trim_blocks=True)
-            template_params['filter_code'] = filter_code
+            template_params['filter_code'] = self.filter_code
 
         output = maker_t.render(**template_params)
 
