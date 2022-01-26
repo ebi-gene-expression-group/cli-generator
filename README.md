@@ -36,8 +36,9 @@ for the case of Python methods or automatically
 for the case of R methods.
 
 This tool aims to be of assistant for:
-1.- Writing R code to a script that uses a set of calls from one or more libraries
-2.- Writing a Galaxy wrapper to call CLIs like the generated in (1) or simply for any CLI.
+
+1. Writing R code to a script that uses a set of calls from one or more libraries
+2. Writing a Galaxy wrapper to call CLIs like the generated in (1) or simply for any CLI.
 
 In the case of writing a Galaxy wrapper (2), there are also other alternatives like [planemo](https://planemo.readthedocs.io/en/latest/writing.html).
 If the command line call that you are trying to wrap is very simple and only uses a couple of positional arguments, you might be better
@@ -135,6 +136,8 @@ one call can be passed to another call as an `internal` option, specifying the v
 
 
 ## YAML generation from R methods documentation (Rd files)
+
+This is useful when you want to write an R script that will make succesive calls to various R functions from one or more libraries. You execute this process per library call.
 
 Given a set of functions that are desired for a specific
 R package:
