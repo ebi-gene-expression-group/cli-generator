@@ -127,6 +127,7 @@ it would mean that in the command line the script expects `--input-format` but t
 and any underscores changed to spaces.
 - default: A default value for the option.
 - help: Long text describing the option, used as help in Galaxy. Optional.
+- optional: Boolean, whether this parameter/option is optional or not for the command call. If true, then the option is surrounded in appropiate conditionals in Galaxy/R.
 - options: A list of either strings or `key: value` pairs with potential values (and their explanation) for the argument. If this is available, it will mean that the option
 will be presented in Galaxy as a drop down selection, with the options listed here. Optional. If used, the `default` has to be set.
 
